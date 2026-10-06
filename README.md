@@ -1,8 +1,8 @@
-# flc
+# FLClashX CLI
 
 A terminal VPN client for Linux, built on the [mihomo](https://github.com/MetaCubeX/mihomo) core, the same engine inside [FlClashX](https://github.com/pluralplay/FlClashX), just without the window.
 
-flc runs in the background, you talk to it with a few short commands, and that's it. No window, no tray icon, nothing to babysit.
+Client runs in the background, you talk to it with a few short commands, and that's it. No window, no tray icon, nothing to babysit.
 
 It reads clash/mihomo YAML subscriptions, and plain or base64 lists of `vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://` links.
 
