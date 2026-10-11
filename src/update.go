@@ -108,7 +108,7 @@ func ghGet(cl *http.Client, url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "flc/"+version)
+	req.Header.Set("User-Agent", "FLClashX-CLI/"+version)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	resp, err := cl.Do(req)
 	if err != nil {
@@ -240,7 +240,7 @@ func upgrade(cl *http.Client, r *release) error {
 	if err := replaceBins(from, exe, core); err != nil {
 		return fmt.Errorf(T("не получилось заменить файлы: %w", "couldn't replace the files: %w"), err)
 	}
-	fmt.Printf(T("flc обновлён до %s\n", "flc updated to %s\n"), r.Tag)
+	fmt.Printf(T("FLClashX CLI обновлён до %s\n", "FLClashX CLI updated to %s\n"), r.Tag)
 
 	if corePid() == 0 || !confirm(T("VPN запущен, перезапустить на новой версии?", "VPN is running, restart it on the new version?"), true) {
 		return nil

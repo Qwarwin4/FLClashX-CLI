@@ -89,8 +89,8 @@ func cmdDelete(args []string) error {
 	if len(pos) > 0 {
 		return errors.New(T("delete не принимает аргументов", "delete takes no arguments"))
 	}
-	if !*yes && !confirm(T("удалить flc полностью: профили, настройки, логи и программу?",
-		"remove flc completely: profiles, settings, logs and the program?"), false) {
+	if !*yes && !confirm(T("удалить FLClashX CLI полностью: профили, настройки, логи и программу?",
+		"remove FLClashX CLI completely: profiles, settings, logs and the program?"), false) {
 		return nil
 	}
 
@@ -146,7 +146,7 @@ func removeBins() error {
 			_ = asRootQuiet("rmdir", "--", lib)
 		}
 	}
-	fmt.Println(T("flc удалён", "flc removed"))
+	fmt.Println(T("FLClashX CLI удалён", "FLClashX CLI removed"))
 	return nil
 }
 

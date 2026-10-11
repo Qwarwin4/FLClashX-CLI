@@ -78,7 +78,7 @@ build() {
 		-o build/flc ./src
 }
 
-[ "$(uname -s)" = Linux ] || die "flc работает только на Linux"
+[ "$(uname -s)" = Linux ] || die "FLClashX CLI работает только на Linux"
 [ "$(id -u)" -ne 0 ] || die "запускай от обычного пользователя, права root попрошу сам"
 
 cd "$(dirname "$0")"

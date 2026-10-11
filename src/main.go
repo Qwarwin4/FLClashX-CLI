@@ -12,7 +12,7 @@ import (
 
 var version = "0.1.0"
 
-const usageRu = `flc — консольный VPN-клиент на ядре mihomo
+const usageRu = `FLClashX CLI — консольный VPN-клиент на ядре mihomo
 
 Использование: flc <команда> [аргументы]
 
@@ -41,7 +41,7 @@ const usageRu = `flc — консольный VPN-клиент на ядре mih
   version                      версия
 `
 
-const usageEn = `flc — terminal VPN client on the mihomo core
+const usageEn = `FLClashX CLI — terminal VPN client on the mihomo core
 
 Usage: flc <command> [args]
 
@@ -113,7 +113,7 @@ func main() {
 		fmt.Print(usage())
 		return
 	case "version", "-v", "--version":
-		fmt.Println("flc", version)
+		fmt.Println("FLClashX CLI", version)
 		return
 	}
 

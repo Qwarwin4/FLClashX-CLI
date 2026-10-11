@@ -45,7 +45,7 @@ func fields() []field {
 		{
 			label: func() string { return T("Язык", "Language") },
 			help: func(*form) string {
-				return T("Язык, на котором flc с тобой говорит.", "The language flc talks to you in.")
+				return T("Язык, на котором FLClashX CLI с тобой говорит.", "The language FLClashX CLI talks to you in.")
 			},
 			kind: kChoice,
 			opts: []string{"en", "ru"},

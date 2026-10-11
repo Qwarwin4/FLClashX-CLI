@@ -30,7 +30,7 @@ sudo install -Dm755 flc /usr/local/lib/flc/flc-core
 sudo setcap cap_net_admin,cap_net_bind_service=+ep /usr/local/lib/flc/flc-core
 ```
 
-Make it a real copy, not a link, so only `flc-core` gets those rights. flc looks for the core either in `../lib/flc/` relative to itself or right next to it, so keeping both in one folder, say `~/.local/bin`, works just as well.
+Make it a real copy, not a link, so only `flc-core` gets those rights. FLClashX CLI looks for the core either in `../lib/flc/` relative to itself or right next to it, so keeping both in one folder, say `~/.local/bin`, works just as well.
 
 ### From source
 
@@ -45,7 +45,7 @@ Run it as your normal user, it asks for root when it needs it. The script:
 - installs Go and `setcap` if they're missing (pacman, apt, dnf, zypper, xbps and apk);
 - lets an older Go (1.21–1.23) fetch 1.24 by itself;
 - checks Go modules against `sum.golang.org`;
-- builds flc and puts it in `/usr/local`.
+- builds FLClashX CLI and puts it in `/usr/local`.
 
 Want a different place? `PREFIX=/opt/flc ./install.sh`.
 
@@ -89,8 +89,8 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc debug log [-n 200] [-f]` | core log; `-f` follows it live |
 | `flc settings` | interactive settings menu, keyboard and mouse |
 | `flc lang <ru\|en>` | interface language; without an argument, shows the current one |
-| `flc check-updates` | look for a new flc release and install it if you say yes |
-| `flc delete` | remove flc completely: data and binaries |
+| `flc check-updates` | look for a new FLClashX CLI release and install it if you say yes |
+| `flc delete` | remove FLClashX CLI completely: data and binaries |
 | `flc version` | version |
 
 A few details:
@@ -105,9 +105,9 @@ A few details:
 - `global` sends everything through the VPN.
 - `direct` sends nothing through it.
 
-`change-mode` applies right away if the VPN is up, and is remembered for next time. In `global`, flc uses the same server you picked in `rules`, instead of mihomo's default `DIRECT`, which would quietly turn the VPN off.
+`change-mode` applies right away if the VPN is up, and is remembered for next time. In `global`, FLClashX CLI uses the same server you picked in `rules`, instead of mihomo's default `DIRECT`, which would quietly turn the VPN off.
 
-**Language:** flc speaks English and Russian. On first run it picks one from your locale; `flc lang` changes it for good.
+**Language:** FLClashX CLI speaks English and Russian. On first run it picks one from your locale; `flc lang` changes it for good.
 
 ## Settings
 
@@ -154,12 +154,12 @@ Changes apply on the next `flc start` or `flc restart`.
 
 ## Security
 
-A VPN client handles your credentials and your network, so flc is careful about both.
+A VPN client handles your credentials and your network, so FLClashX CLI is careful about both.
 
 - **Least privilege.** The CLI runs as you and refuses to run as root.
   - Only the core gets extra rights, and only the two TUN needs: `CAP_NET_ADMIN` and `CAP_NET_BIND_SERVICE`.
   - The core sets `no_new_privs`, refuses root and gets a minimal environment.
-  - Any local user can start the core, and with it TUN routes for the whole machine. So flc is meant for a personal computer, not a shared server.
+  - Any local user can start the core, and with it TUN routes for the whole machine. So FLClashX CLI is meant for a personal computer, not a shared server.
 - **No network-facing control.** The core is driven through a unix socket in a `0700` directory. There's no TCP controller, no web dashboard and no secret to leak.
 - **Profiles can't open doors.** Anything that would open ports or touch the system is stripped from the profile: `external-controller*`, `external-ui*`, `listeners`, `tunnels`, `iptables`, `tuic-server`, `allow-lan`, `dns.listen`, `ntp.write-to-system` and friends. After parsing, the core switches all of it off again. The local proxy only listens on `127.0.0.1`.
 - **Private files.** Profiles, settings and logs are `0600`, directories `0700`. The generated runtime config, which holds your keys, is deleted on stop.
@@ -217,4 +217,4 @@ Other users' data on the same machine is left alone; each of them runs `flc dele
 
 ## License
 
-GPL-3.0, same as mihomo, which is built into flc.
+GPL-3.0, same as mihomo, which is built into FLClashX CLI.

@@ -170,7 +170,7 @@ func startCore(p *profile, s settings) error {
 		return err
 	}
 	defer lf.Close()
-	fmt.Fprintf(lf, T("flc %s: старт, профиль «%s»\n", "flc %s: start, profile %q\n"), time.Now().Format(time.DateTime), p.Name)
+	fmt.Fprintf(lf, T("FLClashX CLI %s: старт, профиль «%s»\n", "FLClashX CLI %s: start, profile %q\n"), time.Now().Format(time.DateTime), p.Name)
 
 	cmd := exec.Command(core, "-d", coreHome(), "-f", runCfg(), "-s", sockPath())
 	cmd.Dir = coreHome()
