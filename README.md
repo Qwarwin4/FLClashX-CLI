@@ -15,7 +15,7 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `flc-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases) and put the two binaries in place:
 
 ```sh
-tar xzf FLCkashX-CLI-v0.1.0-linux-amd64.tar.gz
+tar xzf FLClashX-CLI-v0.1.0-linux-amd64.tar.gz
 cd FLClashX-CLI-v0.1.0-linux-amd64
 sudo install -Dm755 flc /usr/local/bin/flc
 sudo install -Dm755 flc-core /usr/local/lib/flc/flc-core
