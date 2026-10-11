@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -31,10 +30,12 @@ func cmdChangeMode(args []string) error {
 	}
 	defer unlock()
 
-	if _, err := loadSettings(); err != nil {
+	s, err := loadSettings()
+	if err != nil {
 		return err
 	}
-	if err := setMode(m); err != nil {
+	s.Mode = m
+	if err := saveSettings(s); err != nil {
 		return err
 	}
 
@@ -87,24 +88,4 @@ func fixGlobal(a *api, p *profile) {
 	if root := g.root(a.matchTarget(), "rule"); root != "GLOBAL" {
 		_ = a.choose("GLOBAL", root)
 	}
-}
-
-func setMode(m string) error {
-	b, err := os.ReadFile(settingsPath())
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(string(b), "\n")
-	found := false
-	for i, ln := range lines {
-		if strings.HasPrefix(ln, "mode:") {
-			lines[i] = "mode: " + m
-			found = true
-		}
-	}
-	out := strings.Join(lines, "\n")
-	if !found {
-		out = strings.TrimRight(out, "\n") + "\nmode: " + m + "\n"
-	}
-	return writeFile(settingsPath(), []byte(out))
 }

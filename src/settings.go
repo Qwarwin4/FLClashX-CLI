@@ -83,21 +83,76 @@ func loadSettings() (settings, error) {
 	if s.Mode == "rules" {
 		s.Mode = "rule"
 	}
-
-	bad := func(what string) error {
-		return fmt.Errorf(T("%s: неверное значение %s", "%s: bad value for %s"), p, what)
-	}
-	switch {
-	case !slices.Contains([]string{"system", "gvisor", "mixed"}, s.Stack):
-		return s, bad("tun-stack")
-	case s.MixedPort < 1 || s.MixedPort > 65535:
-		return s, bad("mixed-port")
-	case !slices.Contains([]string{"rule", "global", "direct"}, s.Mode):
-		return s, bad("mode")
-	case !slices.Contains([]string{"silent", "error", "warning", "info", "debug"}, s.LogLevel):
-		return s, bad("log-level")
-	case s.UA == "" || strings.IndexFunc(s.UA, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0:
-		return s, bad("user-agent")
+	if k := s.bad(); k != "" {
+		return s, fmt.Errorf(T("%s: неверное значение %s", "%s: bad value for %s"), p, k)
 	}
 	return s, nil
+}
+
+func (s settings) bad() string {
+	switch {
+	case !slices.Contains(stacks, s.Stack):
+		return "tun-stack"
+	case s.MixedPort < 1 || s.MixedPort > 65535:
+		return "mixed-port"
+	case !slices.Contains(modes, s.Mode):
+		return "mode"
+	case !slices.Contains(levels, s.LogLevel):
+		return "log-level"
+	case s.UA == "" || len([]rune(s.UA)) > maxUA ||
+		strings.IndexFunc(s.UA, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0:
+		return "user-agent"
+	}
+	return ""
+}
+
+var (
+	stacks = []string{"mixed", "system", "gvisor"}
+	modes  = []string{"rule", "global", "direct"}
+	levels = []string{"silent", "error", "warning", "info", "debug"}
+)
+
+const maxUA = 200
+
+func saveSettings(s settings) error {
+	if k := s.bad(); k != "" {
+		return fmt.Errorf(T("неверное значение %s", "bad value for %s"), k)
+	}
+	b, err := os.ReadFile(settingsPath())
+	if errors.Is(err, fs.ErrNotExist) {
+		b, err = []byte(T(defRu, defEn)), nil
+	}
+	if err != nil {
+		return err
+	}
+
+	kv := []struct {
+		k string
+		v any
+	}{
+		{"tun", s.Tun}, {"tun-stack", s.Stack}, {"mixed-port", s.MixedPort}, {"mode", s.Mode},
+		{"log-level", s.LogLevel}, {"user-agent", s.UA}, {"send-hwid", s.HWID},
+	}
+	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	for _, x := range kv {
+		out, err := yaml.Marshal(map[string]any{x.k: x.v})
+		if err != nil {
+			return err
+		}
+		ln := strings.TrimRight(string(out), "\n")
+		if strings.Contains(ln, "\n") {
+			return fmt.Errorf(T("неверное значение %s", "bad value for %s"), x.k)
+		}
+		found := false
+		for i, l := range lines {
+			if strings.HasPrefix(l, x.k+":") {
+				lines[i] = ln
+				found = true
+			}
+		}
+		if !found {
+			lines = append(lines, ln)
+		}
+	}
+	return writeFile(settingsPath(), []byte(strings.Join(lines, "\n")+"\n"))
 }

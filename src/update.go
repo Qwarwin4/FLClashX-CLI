@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-var repo = "Qwarwin4/flc"
+var repo = "Qwarwin4/FLClashX-CLI"
 
 const maxSrc = 128 << 20
 

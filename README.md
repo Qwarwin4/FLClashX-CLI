@@ -81,6 +81,7 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc change-mode <rules\|global\|direct>` | routing mode |
 | `flc delete-profile <profile>` | delete a profile |
 | `flc debug log [-n 200] [-f]` | core log; `-f` follows it live |
+| `flc settings` | interactive settings menu, keyboard and mouse |
 | `flc lang <ru\|en>` | interface language; without an argument, shows the current one |
 | `flc check-updates` | look for a new flc release and install it if you say yes |
 | `flc delete` | remove flc completely: data and binaries |
@@ -104,7 +105,9 @@ A few details:
 
 ## Settings
 
-`~/.config/flc/settings.yaml` is created on first run:
+The easy way is `flc settings`: a menu right in the terminal where you move with the arrows or click with the mouse, flip switches with Enter and save with `s`. If the VPN is running, it offers to restart it so the changes take effect.
+
+Under the hood it's all in `~/.config/flc/settings.yaml`, created on first run, which you can also edit by hand:
 
 ```yaml
 tun: true            # all traffic through the VPN; false = only a proxy on 127.0.0.1:mixed-port

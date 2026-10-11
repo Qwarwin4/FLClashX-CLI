@@ -34,6 +34,7 @@ const usageRu = `flc — консольный VPN-клиент на ядре mih
   delete-profile <профиль>     удалить профиль (-y без вопроса)
   change-mode <режим>          rules | global | direct
   debug log [-n 200] [-f]      лог ядра
+  settings                     настройки в интерактивном меню
   lang [ru|en]                 язык интерфейса
   check-updates                проверить и поставить новую версию flc
   delete                       удалить flc полностью (-y без вопроса)
@@ -62,6 +63,7 @@ Usage: flc <command> [args]
   delete-profile <profile>     delete a profile (-y to skip the prompt)
   change-mode <mode>           rules | global | direct
   debug log [-n 200] [-f]      core log
+  settings                     interactive settings menu
   lang [ru|en]                 interface language
   check-updates                check for and install a new flc version
   delete                       remove flc completely (-y to skip the prompt)
@@ -86,6 +88,7 @@ var cmds = map[string]func([]string) error{
 	"delete-profile": cmdDeleteProfile,
 	"change-mode":    cmdChangeMode,
 	"debug":          cmdDebug,
+	"settings":       cmdSettings,
 	"lang":           cmdLang,
 	"check-updates":  cmdCheckUpdates,
 	"delete":         cmdDelete,
