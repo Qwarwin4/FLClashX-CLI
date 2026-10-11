@@ -12,19 +12,25 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 
 ### Prebuilt binaries
 
-Download `flc-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases) and put the two binaries in place:
+Download `flc-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.1.0-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.1.0-linux-amd64
+tar xzf flc-v0.1.0-linux-amd64.tar.gz
+cd flc-v0.1.0-linux-amd64
+./install.sh
+```
+
+Run it as your normal user, it asks for root when it needs it. You don't need Go for this. If `setcap` is missing, the script installs it (`libcap` on Arch, `libcap2-bin` on Debian/Ubuntu).
+
+Prefer to do it by hand? The archive has a single binary, and it goes in twice: once as the command you type, once as the core that gets the network rights.
+
+```sh
 sudo install -Dm755 flc /usr/local/bin/flc
-sudo install -Dm755 flc-core /usr/local/lib/flc/flc-core
+sudo install -Dm755 flc /usr/local/lib/flc/flc-core
 sudo setcap cap_net_admin,cap_net_bind_service=+ep /usr/local/lib/flc/flc-core
 ```
 
-`setcap` comes with `libcap` on Arch and `libcap2-bin` on Debian/Ubuntu. You don't need Go for this.
-
-flc looks for the core either in `../lib/flc/` relative to itself or right next to it. So keeping both files in one folder, say `~/.local/bin`, works just as well. Just run `setcap` on that `flc-core`.
+Make it a real copy, not a link, so only `flc-core` gets those rights. flc looks for the core either in `../lib/flc/` relative to itself or right next to it, so keeping both in one folder, say `~/.local/bin`, works just as well.
 
 ### From source
 
@@ -39,7 +45,7 @@ Run it as your normal user, it asks for root when it needs it. The script:
 - installs Go and `setcap` if they're missing (pacman, apt, dnf, zypper, xbps and apk);
 - lets an older Go (1.21–1.23) fetch 1.24 by itself;
 - checks Go modules against `sum.golang.org`;
-- builds both binaries and puts them in `/usr/local`.
+- builds flc and puts it in `/usr/local`.
 
 Want a different place? `PREFIX=/opt/flc ./install.sh`.
 
@@ -211,4 +217,4 @@ Other users' data on the same machine is left alone; each of them runs `flc dele
 
 ## License
 
-GPL-3.0, same as mihomo, which is built into `flc-core`.
+GPL-3.0, same as mihomo, which is built into flc.
