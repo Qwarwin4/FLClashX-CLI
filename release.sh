@@ -20,7 +20,7 @@ rm -rf dist
 mkdir -p dist
 
 for arch in ${ARCHES:-amd64 arm64}; do
-	name=flc-$TAG-linux-$arch
+	name=FLClashX-CLI-$TAG-linux-$arch
 	out=dist/$name
 	echo "==> $name"
 	mkdir -p "$out"

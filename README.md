@@ -12,11 +12,11 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 
 ### Prebuilt binaries
 
-Download `flc-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
+Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf flc-v0.1.0-linux-amd64.tar.gz
-cd flc-v0.1.0-linux-amd64
+tar xzf FLClashX-CLI-v0.2.0-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.2.0-linux-amd64
 ./install.sh
 ```
 
@@ -200,7 +200,7 @@ gh release create v0.1.0 dist/* --title v0.1.0
 ```
 
 `release.sh` puts into `dist/`:
-- `flc-<tag>-linux-amd64.tar.gz`
+- `FLClashX-CLI-<tag>-linux-amd64.tar.gz`
 - `SHA256SUMS`
 
 These are exactly the names `flc check-updates` looks for. Commit `go.sum` before tagging.

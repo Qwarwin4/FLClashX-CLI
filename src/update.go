@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -218,14 +219,17 @@ func upgrade(cl *http.Client, r *release) error {
 	}
 	defer os.RemoveAll(work)
 
-	name := fmt.Sprintf("flc-%s-linux-%s.tar.gz", r.Tag, runtime.GOARCH)
-	var bin, sums string
+	names := []string{
+		fmt.Sprintf("FLClashX-CLI-%s-linux-%s.tar.gz", r.Tag, runtime.GOARCH),
+		fmt.Sprintf("flc-%s-linux-%s.tar.gz", r.Tag, runtime.GOARCH),
+	}
+	var name, bin, sums string
 	for _, a := range r.Assets {
-		switch a.Name {
-		case name:
-			bin = a.URL
-		case "SHA256SUMS":
+		switch {
+		case a.Name == "SHA256SUMS":
 			sums = a.URL
+		case bin == "" && slices.Contains(names, a.Name):
+			name, bin = a.Name, a.URL
 		}
 	}
 	var from string
