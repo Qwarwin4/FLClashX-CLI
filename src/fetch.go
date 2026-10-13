@@ -14,12 +14,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/metacubex/mihomo/common/convert"
 	"go.yaml.in/yaml/v3"
+	"golang.org/x/sys/unix"
 )
 
 const maxSize = 16 << 20
@@ -69,8 +71,11 @@ func download(raw string, s settings, allowHTTP bool) (*sub, error) {
 	req.Header.Set("User-Agent", s.UA)
 	if s.HWID {
 		if id := hwid(); id != "" {
+			d := deviceInfo()
 			req.Header.Set("x-hwid", id)
-			req.Header.Set("x-device-os", "Linux")
+			req.Header.Set("x-device-os", d.os)
+			req.Header.Set("x-ver-os", d.ver)
+			req.Header.Set("x-device-model", d.model)
 		}
 	}
 
@@ -208,4 +213,108 @@ func hwid() string {
 	}
 	sum := sha256.Sum256(append([]byte("flc:"), bytes.TrimSpace(b)...))
 	return hex.EncodeToString(sum[:16])
+}
+
+var sysRoot = "/"
+
+type device struct{ os, ver, model string }
+
+func deviceInfo() device {
+	rel := osRelease()
+	name := rel["NAME"]
+	if name == "" {
+		name = "Linux"
+	}
+	v := rel["VERSION_ID"]
+	if v == "" {
+		v = kernel()
+	}
+	return device{
+		os:    "Linux",
+		ver:   headerVal(name + " " + v),
+		model: headerVal(model()),
+	}
+}
+
+func osRelease() map[string]string {
+	m := map[string]string{}
+	for _, p := range []string{"etc/os-release", "usr/lib/os-release"} {
+		b, err := os.ReadFile(filepath.Join(sysRoot, p))
+		if err != nil {
+			continue
+		}
+		for _, ln := range strings.Split(string(b), "\n") {
+			k, v, ok := strings.Cut(strings.TrimSpace(ln), "=")
+			if !ok || strings.HasPrefix(k, "#") {
+				continue
+			}
+			if u, err := strconv.Unquote(v); err == nil {
+				v = u
+			} else {
+				v = strings.Trim(v, `"'`)
+			}
+			m[k] = v
+		}
+		break
+	}
+	return m
+}
+
+func kernel() string {
+	var u unix.Utsname
+	if unix.Uname(&u) != nil {
+		return ""
+	}
+	return unix.ByteSliceToString(u.Release[:])
+}
+
+var junk = []string{
+	"to be filled by o.e.m.", "system product name", "system version", "default string",
+	"not applicable", "not specified", "none", "n/a", "invalid", "0123456789", "type1productconfigid",
+}
+
+func dmi(f string) string {
+	b, err := os.ReadFile(filepath.Join(sysRoot, "sys/class/dmi/id", f))
+	if err != nil {
+		return ""
+	}
+	v := strings.TrimSpace(string(b))
+	if slices.Contains(junk, strings.ToLower(v)) {
+		return ""
+	}
+	return v
+}
+
+func model() string {
+	vendor, name, ver := dmi("sys_vendor"), dmi("product_name"), dmi("product_version")
+	if strings.EqualFold(vendor, "lenovo") {
+		vendor = "Lenovo"
+		if ver != "" {
+			name = ver
+		}
+	}
+	if name == "" {
+		vendor, name = dmi("board_vendor"), dmi("board_name")
+	}
+	if name == "" {
+		return "PC"
+	}
+	if vendor == "" || strings.Contains(strings.ToLower(name), strings.ToLower(strings.Fields(vendor)[0])) {
+		return name
+	}
+	return vendor + " " + name
+}
+
+func headerVal(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || r > 0x7e {
+			return ' '
+		}
+		return r
+	}, s)
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > 64 {
+		s = strings.TrimSpace(s[:64])
+	}
+	return s
 }

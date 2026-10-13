@@ -132,8 +132,9 @@ func fields() []field {
 					return T("Панель не получит ничего, что связывает подписку с этим компьютером. Панели с лимитом устройств могут отказать.",
 						"The panel gets nothing that ties your subscription to this computer. Panels that limit devices may refuse.")
 				}
-				return fmt.Sprintf(T("Панель видит этот компьютер как %s… Это хеш, сам machine-id никуда не уходит.",
-					"The panel sees this computer as %s… It's a hash, the machine-id itself never leaves."), id[:12])
+				d := deviceInfo()
+				return fmt.Sprintf(T("Панель видит этот компьютер как %s… (%s, %s). Это хеш, сам machine-id никуда не уходит.",
+					"The panel sees this computer as %s… (%s, %s). It's a hash, the machine-id itself never leaves."), id[:12], d.ver, d.model)
 			},
 			kind: kToggle,
 			get:  func(f *form) string { return strconv.FormatBool(f.s.HWID) },
