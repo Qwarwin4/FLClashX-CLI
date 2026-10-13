@@ -15,8 +15,8 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.2.3-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.2.3-linux-amd64
+tar xzf FLClashX-CLI-v0.2.4-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.2.4-linux-amd64
 ./install.sh
 ```
 
@@ -89,6 +89,7 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc config [--profile <name>]` | open a profile's YAML in nano |
 | `flc change-mode <rules\|global\|direct>` | routing mode |
 | `flc delete-profile <profile>` | delete a profile |
+| `flc delete-profile --all` | delete every profile; stop the VPN first |
 | `flc debug log [-n 200] [-f]` | core log; `-f` follows it live |
 | `flc settings` | interactive settings menu, keyboard and mouse |
 | `flc lang <ru\|en>` | interface language; without an argument, shows the current one |
@@ -99,7 +100,7 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 
 A few details:
 
-- `add-profile` also takes `--name <name>` and `--allow-http` (plain http links are refused by default).
+- `add-profile` also takes `--name <name>` and `--allow-http` (plain http links are refused by default). The same subscription link can't be added twice; use `update-profile` to refresh it.
 - `delete-profile` and `delete` take `-y` to skip the confirmation.
 - Names with spaces don't need quotes: `flc switch-profile Work VPN` works.
 
@@ -131,7 +132,7 @@ flags: auto          # country flags in server names: auto | emoji | text
 
 Changes apply on the next `flc start` or `flc restart`.
 
-**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.3/mihomo 1.19.32`. `flc help` shows the exact string.
+**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.4/mihomo 1.19.32`. `flc help` shows the exact string.
 
 **Country flags.** Server names often start with a flag like 🇩🇪. Some terminals, Alacritty among them, can't draw flags and show two letter boxes instead. With `flags: text` FLClashX CLI writes the country code in plain letters (`DE Germany`). `auto`, the default, keeps emoji in kitty, foot, WezTerm and Ghostty and when the output goes into a pipe, and uses letters everywhere else.
 
@@ -221,7 +222,7 @@ The update only talks to GitHub over https, refuses redirects to anywhere else, 
 Bump `version` in `src/main.go`, commit `go.sum`, then:
 
 ```sh
-TAG=v0.2.3
+TAG=v0.2.4
 NAME=FLClashX-CLI-$TAG-linux-amd64
 MIHOMO=$(go list -m -f '{{.Version}}' github.com/metacubex/mihomo)
 

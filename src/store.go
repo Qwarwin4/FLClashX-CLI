@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -131,6 +132,37 @@ func (st *store) remove(p *profile) {
 			st.Current = st.Profiles[0].ID
 		}
 	}
+}
+
+func sameLink(a, b string) bool {
+	return linkKey(a) == linkKey(b)
+}
+
+func linkKey(s string) string {
+	u, err := url.Parse(strings.TrimSpace(s))
+	if err != nil || u.Host == "" {
+		return strings.TrimSpace(s)
+	}
+	host := strings.ToLower(u.Hostname())
+	port := u.Port()
+	scheme := strings.ToLower(u.Scheme)
+	if scheme == "https" && port == "443" || scheme == "http" && port == "80" {
+		port = ""
+	}
+	if port != "" {
+		host += ":" + port
+	}
+	path := strings.TrimRight(u.EscapedPath(), "/")
+	return host + path + "?" + u.RawQuery
+}
+
+func (st *store) byLink(link string) *profile {
+	for _, p := range st.Profiles {
+		if p.URL != "" && sameLink(p.URL, link) {
+			return p
+		}
+	}
+	return nil
 }
 
 func (st *store) uniq(n string) string {

@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-var version = "0.2.3"
+var version = "0.2.4"
 
 const usageRu = `FLClashX CLI — консольный VPN-клиент на ядре mihomo
 
@@ -35,6 +35,7 @@ const usageRu = `FLClashX CLI — консольный VPN-клиент на я�
   change-name <имя>            переименовать активный профиль
   config [--profile <имя>]     открыть yaml профиля в nano
   delete-profile <профиль>     удалить профиль (-y без вопроса)
+      --all                    удалить все профили
   change-mode <режим>          rules | global | direct
   debug log [-n 200] [-f]      лог ядра
   settings                     настройки в интерактивном меню
@@ -68,6 +69,7 @@ Usage: flc <command> [args]
   change-name <name>           rename the active profile
   config [--profile <name>]    open a profile's yaml in nano
   delete-profile <profile>     delete a profile (-y to skip the prompt)
+      --all                    delete every profile
   change-mode <mode>           rules | global | direct
   debug log [-n 200] [-f]      core log
   settings                     interactive settings menu

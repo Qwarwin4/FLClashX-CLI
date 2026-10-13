@@ -381,6 +381,16 @@ func cmdAddProfile(args []string) error {
 		return errors.New(T("нужно ровно одно: --link <ссылка> или --file <путь>", "need exactly one of --link <url> or --file <path>"))
 	}
 
+	if *link != "" {
+		st, err := loadStore()
+		if err != nil {
+			return err
+		}
+		if err := dupLink(st, *link); err != nil {
+			return err
+		}
+	}
+
 	s, err := loadSettings()
 	if err != nil {
 		return err
@@ -414,6 +424,11 @@ func cmdAddProfile(args []string) error {
 	st, err := loadStore()
 	if err != nil {
 		return err
+	}
+	if p.URL != "" {
+		if err := dupLink(st, p.URL); err != nil {
+			return err
+		}
 	}
 	if *name != "" {
 		if p.Name, err = checkName(*name); err != nil {
@@ -663,12 +678,24 @@ func cmdConfig(args []string) error {
 	return nil
 }
 
+func dupLink(st *store, link string) error {
+	if p := st.byLink(link); p != nil {
+		return fmt.Errorf(T("эта подписка уже добавлена как «%s». Обновить её: flc update-profile %s",
+			"this subscription is already added as %q. To refresh it: flc update-profile %s"), show(p.Name), show(p.Name))
+	}
+	return nil
+}
+
 func cmdDeleteProfile(args []string) error {
 	fs := newFlags("delete-profile")
 	yes := fs.Bool("y", false, "")
+	all := fs.Bool("all", false, "")
 	pos, err := parse(fs, args)
 	if err != nil {
 		return err
+	}
+	if *all && len(pos) > 0 {
+		return errors.New(T("либо имя профиля, либо --all", "give either a profile name or --all"))
 	}
 	unlock, err := lock()
 	if err != nil {
@@ -679,6 +706,9 @@ func cmdDeleteProfile(args []string) error {
 	st, err := loadStore()
 	if err != nil {
 		return err
+	}
+	if *all {
+		return deleteAll(st, *yes)
 	}
 	p, err := st.find(strings.Join(pos, " "))
 	if err != nil {
@@ -702,6 +732,37 @@ func cmdDeleteProfile(args []string) error {
 	if c := st.cur(); c != nil && c != p {
 		fmt.Printf(T("активный теперь: %s\n", "active now: %s\n"), show(c.Name))
 	}
+	return nil
+}
+
+func deleteAll(st *store, yes bool) error {
+	n := len(st.Profiles)
+	if n == 0 {
+		fmt.Println(T("профилей и так нет", "there are no profiles"))
+		return nil
+	}
+	if corePid() > 0 {
+		return errors.New(T("VPN запущен, сначала flc stop", "the VPN is running, run flc stop first"))
+	}
+	if !yes && !confirm(fmt.Sprintf(T("удалить все профили (%d)?", "delete all %d profiles?"), n), false) {
+		return nil
+	}
+
+	ps := st.Profiles
+	st.Profiles, st.Current = nil, ""
+	if err := st.save(); err != nil {
+		return err
+	}
+	var bad []string
+	for _, p := range ps {
+		if err := os.Remove(p.path()); err != nil && !errors.Is(err, os.ErrNotExist) {
+			bad = append(bad, show(p.Name))
+		}
+	}
+	if len(bad) > 0 {
+		return fmt.Errorf(T("не удалось удалить файлы профилей: %s", "couldn't delete profile files: %s"), strings.Join(bad, ", "))
+	}
+	fmt.Printf(T("удалено профилей: %d\n", "deleted %d profiles\n"), n)
 	return nil
 }
 
