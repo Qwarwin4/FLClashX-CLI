@@ -61,10 +61,11 @@ func flagText(s string) string {
 }
 
 var flagsOnce = sync.OnceValue(func() bool {
-	mode := "auto"
-	if s, err := loadSettings(); err == nil {
-		mode = s.Flags
-	}
+	s, _ := readSettings()
+	return flagLetters(s.Flags)
+})
+
+func flagLetters(mode string) bool {
 	switch mode {
 	case "emoji":
 		return false
@@ -72,7 +73,7 @@ var flagsOnce = sync.OnceValue(func() bool {
 		return true
 	}
 	return !flagTerm()
-})
+}
 
 func textFlags() bool { return flagsOnce() }
 

@@ -68,7 +68,7 @@ func download(raw string, s settings, allowHTTP bool) (*sub, error) {
 	if err != nil {
 		return nil, errors.New(T("некорректная ссылка", "invalid link"))
 	}
-	req.Header.Set("User-Agent", s.UA)
+	req.Header.Set("User-Agent", userAgent())
 	if s.HWID {
 		if id := hwid(); id != "" {
 			d := deviceInfo()

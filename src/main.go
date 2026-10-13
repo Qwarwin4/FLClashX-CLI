@@ -42,6 +42,7 @@ const usageRu = `FLClashX CLI — консольный VPN-клиент на я�
   check-updates                проверить и поставить новую версию flc
   delete                       удалить flc полностью (-y без вопроса)
   version                      версия
+  help                         эта справка и сведения о клиенте
 `
 
 const usageEn = `FLClashX CLI — terminal VPN client on the mihomo core
@@ -74,6 +75,7 @@ Usage: flc <command> [args]
   check-updates                check for and install a new flc version
   delete                       remove flc completely (-y to skip the prompt)
   version                      version
+  help                         this help and info about the client
 `
 
 func usage() string { return T(usageRu, usageEn) }
@@ -118,6 +120,9 @@ func main() {
 	switch name {
 	case "help", "-h", "--help":
 		fmt.Print(usage())
+		if derr == nil {
+			fmt.Print(about())
+		}
 		return
 	case "version", "-v", "--version":
 		fmt.Println("FLClashX CLI", version)

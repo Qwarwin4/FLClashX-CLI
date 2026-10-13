@@ -109,7 +109,7 @@ func ghGet(cl *http.Client, url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "FLClashX-CLI/"+version)
+	req.Header.Set("User-Agent", userAgent())
 	req.Header.Set("Accept", "application/vnd.github+json")
 	resp, err := cl.Do(req)
 	if err != nil {

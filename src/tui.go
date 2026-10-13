@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/metacubex/mihomo/constant/features"
@@ -21,7 +20,6 @@ const (
 	kToggle = iota
 	kChoice
 	kNumber
-	kText
 )
 
 type form struct {
@@ -143,16 +141,12 @@ func fields() []field {
 		{
 			label: func() string { return T("Флаги стран", "Country flags") },
 			help: func(f *form) string {
-				h := T("Как показывать флаги в именах серверов. text пишет код страны буквами (DE, NL) — для терминалов, которые не рисуют флаги, например Alacritty.",
-					"How flags in server names are shown. text writes the country code in letters (DE, NL), for terminals that can't draw flags, like Alacritty.")
-				if f.s.Flags == "auto" {
-					if flagTerm() {
-						h += T(" Сейчас: эмодзи.", " Right now: emoji.")
-					} else {
-						h += T(" Сейчас: буквы.", " Right now: letters.")
-					}
+				ex := "🇩🇪 Germany · 🇳🇱 Amsterdam"
+				if flagLetters(f.s.Flags) {
+					ex = flagText(ex)
 				}
-				return h
+				return T("Как рисовать флаги стран. «Буквы» — код страны вместо флага, для терминалов вроде Alacritty. Сейчас так:",
+					"How country flags are drawn. Letters put the country code in place of the flag, for terminals like Alacritty. Right now:") + "\n" + ex
 			},
 			kind: kChoice,
 			opts: flagModes,
@@ -163,20 +157,13 @@ func fields() []field {
 				case "text":
 					return T("буквы", "letters")
 				}
-				return T("авто", "auto")
+				if flagLetters(v) {
+					return T("авто (буквы)", "auto (letters)")
+				}
+				return T("авто (эмодзи)", "auto (emoji)")
 			},
 			get: func(f *form) string { return f.s.Flags },
 			set: func(f *form, v string) { f.s.Flags = v },
-		},
-		{
-			label: func() string { return "User-Agent" },
-			help: func(*form) string {
-				return T("Отправляется при скачивании подписки. Некоторые панели выбирают по нему формат конфига.",
-					"Sent when downloading subscriptions. Some panels pick the config format by it.")
-			},
-			kind: kText,
-			get:  func(f *form) string { return f.s.UA },
-			set:  func(f *form, v string) { f.s.UA = v },
 		},
 	}
 }
@@ -314,7 +301,7 @@ func (u *tui) activate(d int) {
 		}
 	case kChoice:
 		u.cycle(it, d)
-	case kNumber, kText:
+	case kNumber:
 		u.edit = true
 		u.buf = []rune(it.get(&u.f))
 	}
@@ -328,11 +315,6 @@ func (u *tui) commit() bool {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 || n > 65535 {
 			u.msg = T("порт должен быть от 1 до 65535", "the port must be between 1 and 65535")
-			return false
-		}
-	case kText:
-		if v == "" {
-			u.msg = T("значение не может быть пустым", "this can't be empty")
 			return false
 		}
 	}
@@ -387,9 +369,6 @@ func (u *tui) handle(e ev) {
 		switch e.key {
 		case "rune":
 			if it.kind == kNumber && (e.r < '0' || e.r > '9' || len(u.buf) >= 5) {
-				return
-			}
-			if it.kind == kText && (!unicode.IsPrint(e.r) || len(u.buf) >= maxUA) {
 				return
 			}
 			u.buf = append(u.buf, e.r)
@@ -514,20 +493,22 @@ func fit(s string, n int) string {
 
 func wrap(s string, n int) []string {
 	var out []string
-	line := ""
-	for _, w := range strings.Fields(s) {
-		switch {
-		case line == "":
-			line = w
-		case utf8.RuneCountInString(line)+1+utf8.RuneCountInString(w) <= n:
-			line += " " + w
-		default:
-			out = append(out, line)
-			line = w
+	for _, par := range strings.Split(s, "\n") {
+		line := ""
+		for _, w := range strings.Fields(par) {
+			switch {
+			case line == "":
+				line = w
+			case utf8.RuneCountInString(line)+1+utf8.RuneCountInString(w) <= n:
+				line += " " + w
+			default:
+				out = append(out, line)
+				line = w
+			}
 		}
-	}
-	if line != "" {
-		out = append(out, line)
+		if line != "" {
+			out = append(out, line)
+		}
 	}
 	return out
 }

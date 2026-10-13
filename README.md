@@ -95,6 +95,7 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc check-updates` | look for a new FLClashX CLI release and install it if you say yes |
 | `flc delete` | remove FLClashX CLI completely: data and binaries |
 | `flc version` | version |
+| `flc help` | all commands, plus info about the client: versions, User-Agent, HWID, paths |
 
 A few details:
 
@@ -124,12 +125,13 @@ tun-stack: mixed     # system | gvisor | mixed
 mixed-port: 7890
 mode: rule           # rule | global | direct, same as flc change-mode
 log-level: info      # silent | error | warning | info | debug
-user-agent: clash.meta
 send-hwid: true      # device headers for panels that limit devices, see below
 flags: auto          # country flags in server names: auto | emoji | text
 ```
 
 Changes apply on the next `flc start` or `flc restart`.
+
+**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.2/mihomo 1.19.32`. `flc help` shows the exact string.
 
 **Country flags.** Server names often start with a flag like 🇩🇪. Some terminals, Alacritty among them, can't draw flags and show two letter boxes instead. With `flags: text` FLClashX CLI writes the country code in plain letters (`DE Germany`). `auto`, the default, keeps emoji in kitty, foot, WezTerm and Ghostty and when the output goes into a pipe, and uses letters everywhere else.
 
@@ -163,7 +165,7 @@ Turn it off and the panel gets none of them. `flc settings` shows exactly what g
 **`REALITY authentication failed`.** The server didn't accept the handshake. Check, in this order:
 1. Your clock: run `timedatectl`, and if it isn't synchronized, run `sudo timedatectl set-ntp true`. This matters most in VMs.
 2. Whether the same server works in another client.
-3. Whether your panel serves a different config to a different `user-agent`.
+3. Whether your panel serves a different config by User-Agent. FLClashX CLI sends `FLClashX CLI <version>/mihomo <version>`, `flc help` shows it.
 
 **TUN didn't come up.** Run `getcap` on `flc-core`. If the caps are missing, run `setcap` again.
 

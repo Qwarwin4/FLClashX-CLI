@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"unicode"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -25,8 +24,6 @@ mixed-port: 7890
 mode: rule
 # silent | error | warning | info | debug
 log-level: info
-# User-Agent при скачивании подписки
-user-agent: clash.meta
 # слать x-hwid (sha256 от machine-id) — нужно панелям с лимитом устройств
 send-hwid: true
 # флаги стран в именах серверов: auto | emoji | text (text — код страны буквами)
@@ -45,8 +42,6 @@ mixed-port: 7890
 mode: rule
 # silent | error | warning | info | debug
 log-level: info
-# User-Agent used to fetch subscriptions
-user-agent: clash.meta
 # send x-hwid (sha256 of machine-id), needed by panels that limit devices
 send-hwid: true
 # country flags in server names: auto | emoji | text (text = country code in letters)
@@ -61,23 +56,25 @@ type settings struct {
 	MixedPort int    `yaml:"mixed-port"`
 	Mode      string `yaml:"mode"`
 	LogLevel  string `yaml:"log-level"`
-	UA        string `yaml:"user-agent"`
 	HWID      bool   `yaml:"send-hwid"`
 	Flags     string `yaml:"flags"`
 }
 
 func loadSettings() (settings, error) {
+	s, err := readSettings()
+	if errors.Is(err, fs.ErrNotExist) {
+		return s, writeFile(settingsPath(), []byte(T(defRu, defEn)))
+	}
+	return s, err
+}
+
+func readSettings() (settings, error) {
 	var s settings
-	def := T(defRu, defEn)
-	if err := yaml.Unmarshal([]byte(def), &s); err != nil {
+	if err := yaml.Unmarshal([]byte(T(defRu, defEn)), &s); err != nil {
 		return s, err
 	}
-
 	p := settingsPath()
 	b, err := os.ReadFile(p)
-	if errors.Is(err, fs.ErrNotExist) {
-		return s, writeFile(p, []byte(def))
-	}
 	if err != nil {
 		return s, err
 	}
@@ -106,9 +103,6 @@ func (s settings) bad() string {
 		return "log-level"
 	case !slices.Contains(flagModes, s.Flags):
 		return "flags"
-	case s.UA == "" || len([]rune(s.UA)) > maxUA ||
-		strings.IndexFunc(s.UA, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0:
-		return "user-agent"
 	}
 	return ""
 }
@@ -120,7 +114,17 @@ var (
 	flagModes = []string{"auto", "emoji", "text"}
 )
 
-const maxUA = 200
+func note(k string) []string {
+	def := strings.Split(T(defRu, defEn), "\n")
+	for i, l := range def {
+		if i > 0 && strings.HasPrefix(l, k+":") && strings.HasPrefix(def[i-1], "#") {
+			return []string{def[i-1]}
+		}
+	}
+	return nil
+}
+
+var oldUA = []string{"# User-Agent при скачивании подписки", "# User-Agent used to fetch subscriptions"}
 
 func saveSettings(s settings) error {
 	if k := s.bad(); k != "" {
@@ -139,9 +143,14 @@ func saveSettings(s settings) error {
 		v any
 	}{
 		{"tun", s.Tun}, {"tun-stack", s.Stack}, {"mixed-port", s.MixedPort}, {"mode", s.Mode},
-		{"log-level", s.LogLevel}, {"user-agent", s.UA}, {"send-hwid", s.HWID}, {"flags", s.Flags},
+		{"log-level", s.LogLevel}, {"send-hwid", s.HWID}, {"flags", s.Flags},
 	}
-	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	var lines []string
+	for _, l := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {
+		if !strings.HasPrefix(l, "user-agent:") && !slices.Contains(oldUA, l) {
+			lines = append(lines, l)
+		}
+	}
 	for _, x := range kv {
 		out, err := yaml.Marshal(map[string]any{x.k: x.v})
 		if err != nil {
@@ -159,6 +168,7 @@ func saveSettings(s settings) error {
 			}
 		}
 		if !found {
+			lines = append(lines, note(x.k)...)
 			lines = append(lines, ln)
 		}
 	}
