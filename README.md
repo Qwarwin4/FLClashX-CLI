@@ -15,8 +15,8 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.2.0-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.2.0-linux-amd64
+tar xzf FLClashX-CLI-v0.2.2-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.2.2-linux-amd64
 ./install.sh
 ```
 
@@ -122,10 +122,21 @@ mixed-port: 7890
 mode: rule           # rule | global | direct, same as flc change-mode
 log-level: info      # silent | error | warning | info | debug
 user-agent: clash.meta
-send-hwid: true      # x-hwid for panels that limit devices (a hash of machine-id, not the id itself)
+send-hwid: true      # device headers for panels that limit devices, see below
 ```
 
 Changes apply on the next `flc start` or `flc restart`.
+
+**What `send-hwid` sends.** When it's on, every subscription download carries the headers Remnawave and similar panels use to tell devices apart:
+
+| Header | Value |
+|---|---|
+| `x-hwid` | a hash of `/etc/machine-id`, never the id itself |
+| `x-device-os` | `Linux` |
+| `x-ver-os` | distro and version from `/etc/os-release`, e.g. `Ubuntu 24.04`; rolling distros like Arch get the kernel version instead |
+| `x-device-model` | vendor and model from DMI, e.g. `LENOVO ThinkPad T14`, or `PC` if there's none |
+
+Turn it off and the panel gets none of them. `flc settings` shows exactly what goes out.
 
 ## Where things live
 
@@ -148,7 +159,7 @@ Changes apply on the next `flc start` or `flc restart`.
 2. Whether the same server works in another client.
 3. Whether your panel serves a different config to a different `user-agent`.
 
-**`TUN didn't come up`.** Run `getcap` on `flc-core`. If the caps are missing, run `setcap` again.
+**TUN didn't come up.** Run `getcap` on `flc-core`. If the caps are missing, run `setcap` again.
 
 **Not sure if traffic goes through the VPN?** Run `curl https://ifconfig.me`. It should show the server's IP, not yours.
 
@@ -194,16 +205,30 @@ The update only talks to GitHub over https, refuses redirects to anywhere else, 
 
 ## Making a release
 
+`flc check-updates` looks at the latest GitHub release and expects two files there:
+
+- `FLClashX-CLI-<tag>-linux-amd64.tar.gz`, with `flc`, `install.sh` and `README.md` inside a single `FLClashX-CLI-<tag>-linux-amd64/` folder;
+- `SHA256SUMS`, which lists that archive.
+
+Bump `version` in `src/main.go`, commit `go.sum`, then:
+
 ```sh
-./release.sh v0.1.0
-gh release create v0.1.0 dist/* --title v0.1.0
+TAG=v0.2.2
+NAME=FLClashX-CLI-$TAG-linux-amd64
+MIHOMO=$(go list -m -f '{{.Version}}' github.com/metacubex/mihomo)
+
+mkdir -p dist/$NAME
+CGO_ENABLED=0 go build -trimpath -tags with_gvisor \
+  -ldflags "-s -w -buildid= -X main.version=${TAG#v} -X github.com/metacubex/mihomo/constant.Version=$MIHOMO" \
+  -o dist/$NAME/flc ./src
+cp install.sh README.md dist/$NAME/
+tar --owner=0 --group=0 --numeric-owner -C dist -czf dist/$NAME.tar.gz $NAME
+(cd dist && sha256sum $NAME.tar.gz >SHA256SUMS)
+
+gh release create $TAG dist/$NAME.tar.gz dist/SHA256SUMS --title $TAG
 ```
 
-`release.sh` puts into `dist/`:
-- `FLClashX-CLI-<tag>-linux-amd64.tar.gz`
-- `SHA256SUMS`
-
-These are exactly the names `flc check-updates` looks for. Commit `go.sum` before tagging.
+A release without the archive still works: `check-updates` then builds that tag from source.
 
 ## Uninstall
 
