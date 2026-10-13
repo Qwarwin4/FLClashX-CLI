@@ -81,7 +81,7 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc switch-profile <profile>` | switch profile; restarts the VPN if it's running |
 | `flc add-profile --link <url>` | add a profile from a subscription link |
 | `flc add-profile --file <path>` | add a profile from a file |
-| `flc update [profile]` | re-download a subscription |
+| `flc update-profile [profile]` | re-download a subscription |
 | `flc change-name <name>` | rename the active profile |
 | `flc config [--profile <name>]` | open a profile's YAML in nano |
 | `flc change-mode <rules\|global\|direct>` | routing mode |

@@ -454,8 +454,8 @@ func cmdAddProfile(args []string) error {
 	return nil
 }
 
-func cmdUpdate(args []string) error {
-	fs := newFlags("update")
+func cmdUpdateProfile(args []string) error {
+	fs := newFlags("update-profile")
 	allowHTTP := fs.Bool("allow-http", false, "")
 	pos, err := parse(fs, args)
 	if err != nil {

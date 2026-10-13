@@ -28,7 +28,7 @@ const usageRu = `FLClashX CLI — консольный VPN-клиент на я�
   add-profile --file <путь>    добавить профиль из файла
       --name <имя>             своё имя профиля
       --allow-http             разрешить ссылку без https
-  update [профиль]             перекачать подписку
+  update-profile [профиль]     перекачать подписку
   change-name <имя>            переименовать активный профиль
   config [--profile <имя>]     открыть yaml профиля в nano
   delete-profile <профиль>     удалить профиль (-y без вопроса)
@@ -57,7 +57,7 @@ Usage: flc <command> [args]
   add-profile --file <path>    add a profile from a file
       --name <name>            custom profile name
       --allow-http             allow a non-https link
-  update [profile]             re-download a subscription
+  update-profile [profile]     re-download a subscription
   change-name <name>           rename the active profile
   config [--profile <name>]    open a profile's yaml in nano
   delete-profile <profile>     delete a profile (-y to skip the prompt)
@@ -82,7 +82,7 @@ var cmds = map[string]func([]string) error{
 	"profile-list":   cmdProfileList,
 	"switch-profile": cmdSwitchProfile,
 	"add-profile":    cmdAddProfile,
-	"update":         cmdUpdate,
+	"update-profile": cmdUpdateProfile,
 	"change-name":    cmdChangeName,
 	"config":         cmdConfig,
 	"delete-profile": cmdDeleteProfile,
