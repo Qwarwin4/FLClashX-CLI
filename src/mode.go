@@ -63,7 +63,7 @@ func cmdChangeMode(args []string) error {
 		}
 		if v, err := load(st, p); err == nil {
 			if cur := v.g.current(v.g.root(v.match, m)); cur != "" {
-				fmt.Printf(T("сервер: %s\n", "server: %s\n"), clean(cur))
+				fmt.Printf(T("сервер: %s\n", "server: %s\n"), show(cur))
 			}
 		}
 	}

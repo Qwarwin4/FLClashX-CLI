@@ -237,7 +237,7 @@ func pick(list []string, q string) (string, error) {
 		return hits[0], nil
 	}
 	for i := range hits {
-		hits[i] = clean(hits[i])
+		hits[i] = show(hits[i])
 	}
 	if len(hits) > 6 {
 		hits = append(hits[:6], "...")

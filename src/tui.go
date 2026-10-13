@@ -141,6 +141,34 @@ func fields() []field {
 			set:  func(f *form, v string) { f.s.HWID = v == "true" },
 		},
 		{
+			label: func() string { return T("Флаги стран", "Country flags") },
+			help: func(f *form) string {
+				h := T("Как показывать флаги в именах серверов. text пишет код страны буквами (DE, NL) — для терминалов, которые не рисуют флаги, например Alacritty.",
+					"How flags in server names are shown. text writes the country code in letters (DE, NL), for terminals that can't draw flags, like Alacritty.")
+				if f.s.Flags == "auto" {
+					if flagTerm() {
+						h += T(" Сейчас: эмодзи.", " Right now: emoji.")
+					} else {
+						h += T(" Сейчас: буквы.", " Right now: letters.")
+					}
+				}
+				return h
+			},
+			kind: kChoice,
+			opts: flagModes,
+			show: func(v string) string {
+				switch v {
+				case "emoji":
+					return T("эмодзи", "emoji")
+				case "text":
+					return T("буквы", "letters")
+				}
+				return T("авто", "auto")
+			},
+			get: func(f *form) string { return f.s.Flags },
+			set: func(f *form, v string) { f.s.Flags = v },
+		},
+		{
 			label: func() string { return "User-Agent" },
 			help: func(*form) string {
 				return T("Отправляется при скачивании подписки. Некоторые панели выбирают по нему формат конфига.",

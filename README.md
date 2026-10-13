@@ -79,6 +79,9 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc switch-server <server>` | switch server by full name, part of it (`germ`) or number from the list; if the VPN is up, it restarts on the new server right away |
 | `flc profile-list` | your profiles with traffic used and expiry date |
 | `flc switch-profile <profile>` | switch profile; restarts the VPN if it's running |
+| `flc servergr-name` | name of the active profile's server group, e.g. `Proxy` |
+| `flc servergr-name --profile <profile>` | the same for a given profile |
+| `flc servergr-name --all-profiles` | the group name of every profile; `*` marks the active one |
 | `flc add-profile --link <url>` | add a profile from a subscription link |
 | `flc add-profile --file <path>` | add a profile from a file |
 | `flc update-profile [profile]` | re-download a subscription |
@@ -123,9 +126,12 @@ mode: rule           # rule | global | direct, same as flc change-mode
 log-level: info      # silent | error | warning | info | debug
 user-agent: clash.meta
 send-hwid: true      # device headers for panels that limit devices, see below
+flags: auto          # country flags in server names: auto | emoji | text
 ```
 
 Changes apply on the next `flc start` or `flc restart`.
+
+**Country flags.** Server names often start with a flag like 🇩🇪. Some terminals, Alacritty among them, can't draw flags and show two letter boxes instead. With `flags: text` FLClashX CLI writes the country code in plain letters (`DE Germany`). `auto`, the default, keeps emoji in kitty, foot, WezTerm and Ghostty and when the output goes into a pipe, and uses letters everywhere else.
 
 **What `send-hwid` sends.** When it's on, every subscription download carries the headers Remnawave and similar panels use to tell devices apart:
 

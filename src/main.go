@@ -24,6 +24,9 @@ const usageRu = `FLClashX CLI — консольный VPN-клиент на я�
   switch-server <сервер|№>     сменить сервер (имя, часть имени или номер)
   profile-list                 список профилей
   switch-profile <профиль|№>   сменить профиль
+  servergr-name                имя группы серверов активного профиля
+      --profile <имя>          у конкретного профиля
+      --all-profiles           у каждого профиля
   add-profile --link <url>     добавить профиль по ссылке подписки
   add-profile --file <путь>    добавить профиль из файла
       --name <имя>             своё имя профиля
@@ -53,6 +56,9 @@ Usage: flc <command> [args]
   switch-server <server|#>     switch server (name, part of it or number)
   profile-list                 list profiles
   switch-profile <profile|#>   switch profile
+  servergr-name                server group name of the active profile
+      --profile <name>         of a given profile
+      --all-profiles           of every profile
   add-profile --link <url>     add a profile from a subscription link
   add-profile --file <path>    add a profile from a file
       --name <name>            custom profile name
@@ -81,6 +87,7 @@ var cmds = map[string]func([]string) error{
 	"switch-server":  cmdSwitchServer,
 	"profile-list":   cmdProfileList,
 	"switch-profile": cmdSwitchProfile,
+	"servergr-name":  cmdGroupName,
 	"add-profile":    cmdAddProfile,
 	"update-profile": cmdUpdateProfile,
 	"change-name":    cmdChangeName,

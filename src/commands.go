@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -59,10 +58,10 @@ func cmdStart(args []string) error {
 }
 
 func printUp(st *store, p *profile, s settings) {
-	fmt.Printf(T("VPN запущен, профиль «%s»\n", "VPN is up, profile %q\n"), clean(p.Name))
+	fmt.Printf(T("VPN запущен, профиль «%s»\n", "VPN is up, profile %q\n"), show(p.Name))
 	if v, err := load(st, p); err == nil {
 		if cur := v.g.current(v.g.root(v.match, s.Mode)); cur != "" {
-			fmt.Printf(T("сервер: %s\n", "server: %s\n"), clean(cur))
+			fmt.Printf(T("сервер: %s\n", "server: %s\n"), show(cur))
 		}
 	}
 }
@@ -134,7 +133,7 @@ func cmdStatus(args []string) error {
 	if pid == 0 {
 		fmt.Println(T("VPN не запущен", "VPN is not running"))
 		if p != nil {
-			fmt.Printf(T("профиль: %s\n", "profile: %s\n"), clean(p.Name))
+			fmt.Printf(T("профиль: %s\n", "profile: %s\n"), show(p.Name))
 		}
 		return nil
 	}
@@ -143,7 +142,7 @@ func cmdStatus(args []string) error {
 	if p == nil {
 		return nil
 	}
-	fmt.Printf(T("профиль: %s\n", "profile: %s\n"), clean(p.Name))
+	fmt.Printf(T("профиль: %s\n", "profile: %s\n"), show(p.Name))
 	a := newAPI()
 	c, err := a.configs()
 	if err != nil {
@@ -152,7 +151,7 @@ func cmdStatus(args []string) error {
 	v, err := load(st, p)
 	if err == nil {
 		if cur := v.g.current(v.g.root(v.match, c.Mode)); cur != "" {
-			fmt.Printf(T("сервер:  %s\n", "server:  %s\n"), clean(cur))
+			fmt.Printf(T("сервер:  %s\n", "server:  %s\n"), show(cur))
 		}
 	}
 	tun := T("выкл", "off")
@@ -211,7 +210,7 @@ func cmdServerList(args []string) error {
 	if len(list) == 0 {
 		fmt.Println(T("серверов нет", "no servers"))
 	}
-	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	var t table
 	for i, n := range list {
 		mark := " "
 		if n == cur {
@@ -221,9 +220,9 @@ func cmdServerList(args []string) error {
 		if ms := v.g.delay(n); ms > 0 {
 			d = fmt.Sprintf("%d ms", ms)
 		}
-		fmt.Fprintf(tw, "%s %d\t%s\t%s\t%s\n", mark, i+1, clean(n), strings.ToLower(clean(v.g[n].Type)), d)
+		t.add(fmt.Sprintf("%s %d", mark, i+1), show(n), strings.ToLower(clean(v.g[n].Type)), d)
 	}
-	tw.Flush()
+	t.print()
 	if v.partial {
 		fmt.Println(T("\nчасть серверов приходит из proxy-providers и появится после flc start",
 			"\nsome servers come from proxy-providers and will show up after flc start"))
@@ -270,7 +269,7 @@ func cmdSwitchServer(args []string) error {
 	}
 	steps := v.g.route(root, name)
 	if len(steps) == 0 {
-		return fmt.Errorf(T("«%s» сидит в автоматической группе, вручную его не выбрать", "%q is in an automatic group and can't be picked by hand"), clean(name))
+		return fmt.Errorf(T("«%s» сидит в автоматической группе, вручную его не выбрать", "%q is in an automatic group and can't be picked by hand"), show(name))
 	}
 
 	if p.Selected == nil {
@@ -283,11 +282,11 @@ func cmdSwitchServer(args []string) error {
 		return err
 	}
 	if !v.live {
-		fmt.Printf(T("сервер: %s (применится при flc start)\n", "server: %s (applies on flc start)\n"), clean(name))
+		fmt.Printf(T("сервер: %s (применится при flc start)\n", "server: %s (applies on flc start)\n"), show(name))
 		return nil
 	}
 
-	fmt.Printf(T("сервер: %s, перезапускаю VPN...\n", "server: %s, restarting the VPN...\n"), clean(name))
+	fmt.Printf(T("сервер: %s, перезапускаю VPN...\n", "server: %s, restarting the VPN...\n"), show(name))
 	if err := restart(p, s); err != nil {
 		return err
 	}
@@ -308,8 +307,7 @@ func cmdProfileList(args []string) error {
 		return nil
 	}
 
-	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, T("  #\tИМЯ\tСЕРВЕРОВ\tТРАФИК\tДО\tОБНОВЛЁН", "  #\tNAME\tSERVERS\tTRAFFIC\tEXPIRES\tUPDATED"))
+	t := table{strings.Split(T("  #\tИМЯ\tСЕРВЕРОВ\tТРАФИК\tДО\tОБНОВЛЁН", "  #\tNAME\tSERVERS\tTRAFFIC\tEXPIRES\tUPDATED"), "\t")}
 	for i, p := range st.Profiles {
 		mark := " "
 		if p.ID == st.Current {
@@ -322,10 +320,11 @@ func cmdProfileList(args []string) error {
 				n += "+"
 			}
 		}
-		fmt.Fprintf(tw, "%s %d\t%s\t%s\t%s\t%s\t%s\n", mark, i+1, clean(p.Name), n,
-			p.Info, expires(p.Info), p.Updated.Local().Format("2006-01-02 15:04"))
+		t.add(fmt.Sprintf("%s %d", mark, i+1), show(p.Name), n,
+			p.Info.String(), expires(p.Info), p.Updated.Local().Format("2006-01-02 15:04"))
 	}
-	return tw.Flush()
+	t.print()
+	return nil
 }
 
 func cmdSwitchProfile(args []string) error {
@@ -348,14 +347,14 @@ func cmdSwitchProfile(args []string) error {
 		return err
 	}
 	if p.ID == st.Current {
-		fmt.Printf(T("«%s» и так активен\n", "%q is already active\n"), clean(p.Name))
+		fmt.Printf(T("«%s» и так активен\n", "%q is already active\n"), show(p.Name))
 		return nil
 	}
 	st.Current = p.ID
 	if err := st.save(); err != nil {
 		return err
 	}
-	fmt.Printf(T("активный профиль: %s\n", "active profile: %s\n"), clean(p.Name))
+	fmt.Printf(T("активный профиль: %s\n", "active profile: %s\n"), show(p.Name))
 
 	if corePid() == 0 {
 		return nil
@@ -421,7 +420,7 @@ func cmdAddProfile(args []string) error {
 			return err
 		}
 		if st.byName(p.Name, nil) != nil {
-			return fmt.Errorf(T("профиль «%s» уже есть", "profile %q already exists"), clean(p.Name))
+			return fmt.Errorf(T("профиль «%s» уже есть", "profile %q already exists"), show(p.Name))
 		}
 	} else {
 		if p.Name == "" {
@@ -447,7 +446,7 @@ func cmdAddProfile(args []string) error {
 	if g, _, _, err := fileGraph(p); err == nil {
 		n = len(g.servers("GLOBAL"))
 	}
-	fmt.Printf(T("добавлен профиль «%s», серверов: %d\n", "added profile %q, %d servers\n"), clean(p.Name), n)
+	fmt.Printf(T("добавлен профиль «%s», серверов: %d\n", "added profile %q, %d servers\n"), show(p.Name), n)
 	if first {
 		fmt.Println(T("он стал активным, запускай: flc start", "it's now active, go ahead: flc start"))
 	}
@@ -475,7 +474,7 @@ func cmdUpdateProfile(args []string) error {
 		return err
 	}
 	if p.URL == "" {
-		return fmt.Errorf(T("«%s» добавлен из файла, обновлять нечего", "%q was added from a file, nothing to update"), clean(p.Name))
+		return fmt.Errorf(T("«%s» добавлен из файла, обновлять нечего", "%q was added from a file, nothing to update"), show(p.Name))
 	}
 	s, err := loadSettings()
 	if err != nil {
@@ -510,7 +509,7 @@ func cmdUpdateProfile(args []string) error {
 	if err := st.save(); err != nil {
 		return err
 	}
-	fmt.Printf(T("профиль «%s» обновлён\n", "profile %q updated\n"), clean(p.Name))
+	fmt.Printf(T("профиль «%s» обновлён\n", "profile %q updated\n"), show(p.Name))
 
 	if st.Current == p.ID && corePid() > 0 {
 		fmt.Println(T("перезапускаю VPN...", "restarting the VPN..."))
@@ -550,7 +549,7 @@ func cmdChangeName(args []string) error {
 	if err := st.save(); err != nil {
 		return err
 	}
-	fmt.Printf(T("«%s» → «%s»\n", "%q → %q\n"), clean(old), n)
+	fmt.Printf(T("«%s» → «%s»\n", "%q → %q\n"), show(old), show(n))
 	return nil
 }
 
@@ -688,7 +687,7 @@ func cmdDeleteProfile(args []string) error {
 	if st.Current == p.ID && corePid() > 0 {
 		return errors.New(T("этот профиль сейчас используется, сначала flc stop", "this profile is in use, run flc stop first"))
 	}
-	if !*yes && !confirm(fmt.Sprintf(T("удалить профиль «%s»?", "delete profile %q?"), clean(p.Name)), false) {
+	if !*yes && !confirm(fmt.Sprintf(T("удалить профиль «%s»?", "delete profile %q?"), show(p.Name)), false) {
 		return nil
 	}
 
@@ -699,9 +698,9 @@ func cmdDeleteProfile(args []string) error {
 	if err := os.Remove(p.path()); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	fmt.Printf(T("профиль «%s» удалён\n", "profile %q deleted\n"), clean(p.Name))
+	fmt.Printf(T("профиль «%s» удалён\n", "profile %q deleted\n"), show(p.Name))
 	if c := st.cur(); c != nil && c != p {
-		fmt.Printf(T("активный теперь: %s\n", "active now: %s\n"), clean(c.Name))
+		fmt.Printf(T("активный теперь: %s\n", "active now: %s\n"), show(c.Name))
 	}
 	return nil
 }

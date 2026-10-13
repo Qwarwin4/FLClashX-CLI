@@ -29,6 +29,8 @@ log-level: info
 user-agent: clash.meta
 # слать x-hwid (sha256 от machine-id) — нужно панелям с лимитом устройств
 send-hwid: true
+# флаги стран в именах серверов: auto | emoji | text (text — код страны буквами)
+flags: auto
 `
 
 const defEn = `# flc settings. Applied on the next flc start.
@@ -47,6 +49,8 @@ log-level: info
 user-agent: clash.meta
 # send x-hwid (sha256 of machine-id), needed by panels that limit devices
 send-hwid: true
+# country flags in server names: auto | emoji | text (text = country code in letters)
+flags: auto
 `
 
 func settingsPath() string { return filepath.Join(dir.cfg, "settings.yaml") }
@@ -59,6 +63,7 @@ type settings struct {
 	LogLevel  string `yaml:"log-level"`
 	UA        string `yaml:"user-agent"`
 	HWID      bool   `yaml:"send-hwid"`
+	Flags     string `yaml:"flags"`
 }
 
 func loadSettings() (settings, error) {
@@ -99,6 +104,8 @@ func (s settings) bad() string {
 		return "mode"
 	case !slices.Contains(levels, s.LogLevel):
 		return "log-level"
+	case !slices.Contains(flagModes, s.Flags):
+		return "flags"
 	case s.UA == "" || len([]rune(s.UA)) > maxUA ||
 		strings.IndexFunc(s.UA, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0:
 		return "user-agent"
@@ -107,9 +114,10 @@ func (s settings) bad() string {
 }
 
 var (
-	stacks = []string{"mixed", "system", "gvisor"}
-	modes  = []string{"rule", "global", "direct"}
-	levels = []string{"silent", "error", "warning", "info", "debug"}
+	stacks    = []string{"mixed", "system", "gvisor"}
+	modes     = []string{"rule", "global", "direct"}
+	levels    = []string{"silent", "error", "warning", "info", "debug"}
+	flagModes = []string{"auto", "emoji", "text"}
 )
 
 const maxUA = 200
@@ -131,7 +139,7 @@ func saveSettings(s settings) error {
 		v any
 	}{
 		{"tun", s.Tun}, {"tun-stack", s.Stack}, {"mixed-port", s.MixedPort}, {"mode", s.Mode},
-		{"log-level", s.LogLevel}, {"user-agent", s.UA}, {"send-hwid", s.HWID},
+		{"log-level", s.LogLevel}, {"user-agent", s.UA}, {"send-hwid", s.HWID}, {"flags", s.Flags},
 	}
 	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
 	for _, x := range kv {

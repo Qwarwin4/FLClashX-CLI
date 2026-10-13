@@ -202,7 +202,7 @@ func startCore(p *profile, s settings) error {
 	a := newAPI()
 	for g, n := range p.Selected {
 		if err := a.choose(g, n); err != nil {
-			fmt.Fprintf(os.Stderr, T("не получилось вернуть %q в группе %q: %v\n", "couldn't restore %q in group %q: %v\n"), clean(n), clean(g), err)
+			fmt.Fprintf(os.Stderr, T("не получилось вернуть %q в группе %q: %v\n", "couldn't restore %q in group %q: %v\n"), show(n), show(g), err)
 		}
 	}
 	if s.Mode == "global" {
