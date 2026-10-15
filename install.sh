@@ -113,5 +113,5 @@ $SU rm -f "$LIB/uninstall.sh"
 $SU groupdel flc 2>/dev/null || true
 
 echo
-echo "готово: $PREFIX/bin/flc ($("$BIN" version))"
+echo "готово: $PREFIX/bin/flc ($("$BIN" version | head -n 1))"
 echo "дальше: flc add-profile --link <ссылка> && flc start"

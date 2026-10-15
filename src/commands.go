@@ -53,6 +53,7 @@ func cmdStart(args []string) error {
 	if err := startCore(p, s); err != nil {
 		return err
 	}
+	markStart()
 	printUp(st, p, s)
 	return nil
 }
@@ -94,6 +95,7 @@ func cmdRestart(args []string) error {
 	if err := restart(p, s); err != nil {
 		return err
 	}
+	markStart()
 	printUp(st, p, s)
 	return nil
 }
@@ -112,6 +114,7 @@ func cmdStop(args []string) error {
 	if err != nil {
 		return err
 	}
+	clearStart()
 	if ok {
 		fmt.Println(T("VPN остановлен", "VPN stopped"))
 	} else {
@@ -139,10 +142,23 @@ func cmdStatus(args []string) error {
 	}
 
 	fmt.Printf(T("VPN запущен (pid %d)\n", "VPN is running (pid %d)\n"), pid)
+	var rows [][2]string
+	defer func() {
+		w := 0
+		for _, r := range rows {
+			w = max(w, cells(r[0]))
+		}
+		for _, r := range rows {
+			fmt.Println(r[0] + ":" + strings.Repeat(" ", w-cells(r[0])+1) + r[1])
+		}
+	}()
+	if t, ok := upSince(pid); ok {
+		rows = append(rows, [2]string{T("в работе", "uptime"), uptime(t)})
+	}
 	if p == nil {
 		return nil
 	}
-	fmt.Printf(T("профиль: %s\n", "profile: %s\n"), show(p.Name))
+	rows = append(rows, [2]string{T("профиль", "profile"), show(p.Name)})
 	a := newAPI()
 	c, err := a.configs()
 	if err != nil {
@@ -151,14 +167,15 @@ func cmdStatus(args []string) error {
 	v, err := load(st, p)
 	if err == nil {
 		if cur := v.g.current(v.g.root(v.match, c.Mode)); cur != "" {
-			fmt.Printf(T("сервер:  %s\n", "server:  %s\n"), show(cur))
+			rows = append(rows, [2]string{T("сервер", "server"), show(cur)})
 		}
 	}
 	tun := T("выкл", "off")
 	if c.Tun.Enable {
 		tun = T("вкл", "on")
 	}
-	fmt.Printf(T("режим:   %s, TUN %s, прокси 127.0.0.1:%d\n", "mode:    %s, TUN %s, proxy 127.0.0.1:%d\n"), modeName(c.Mode), tun, c.MixedPort)
+	rows = append(rows, [2]string{T("режим", "mode"),
+		fmt.Sprintf(T("%s, TUN %s, прокси 127.0.0.1:%d", "%s, TUN %s, proxy 127.0.0.1:%d"), modeName(c.Mode), tun, c.MixedPort)})
 	return nil
 }
 

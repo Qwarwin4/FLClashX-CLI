@@ -15,8 +15,8 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.2.5-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.2.5-linux-amd64
+tar xzf FLClashX-CLI-v0.2.6-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.2.6-linux-amd64
 ./install.sh
 ```
 
@@ -74,7 +74,7 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc start` | start the VPN |
 | `flc stop` | stop it |
 | `flc restart` | restart it, or just start it if it isn't running |
-| `flc status` | what's running: profile, server, mode, TUN |
+| `flc status` | what's running: uptime since `flc start`, profile, server, mode, TUN |
 | `flc server-list` | servers in the active profile; `*` is the current one, latency on the right |
 | `flc switch-server <server>` | switch server by full name, part of it (`germ`) or number from the list; if the VPN is up, it restarts on the new server right away |
 | `flc profile-list` | your profiles with traffic used and expiry date |
@@ -95,8 +95,8 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc lang <ru\|en>` | interface language; without an argument, shows the current one |
 | `flc check-updates` | look for a new FLClashX CLI release and install it if you say yes |
 | `flc delete` | remove FLClashX CLI completely: data and binaries |
-| `flc version` | version |
-| `flc help` | all commands, plus info about the client: versions, User-Agent, HWID, paths |
+| `flc version` | version plus info about the client: mihomo version, User-Agent, HWID, paths |
+| `flc help` | all commands |
 
 A few details:
 
@@ -132,7 +132,7 @@ flags: auto          # country flags in server names: auto | emoji | text
 
 Changes apply on the next `flc start` or `flc restart`.
 
-**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.5/mihomo 1.19.32`. `flc help` shows the exact string.
+**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.6/mihomo 1.19.32`. `flc version` shows the exact string.
 
 **Country flags.** Server names often start with a flag like 🇩🇪. Some terminals, Alacritty among them, can't draw flags and show two letter boxes instead. With `flags: text` FLClashX CLI writes the country code in plain letters (`DE Germany`). `auto`, the default, keeps emoji in kitty, foot, WezTerm and Ghostty and when the output goes into a pipe, and uses letters everywhere else.
 
@@ -166,7 +166,7 @@ Turn it off and the panel gets none of them. `flc settings` shows exactly what g
 **`REALITY authentication failed`.** The server didn't accept the handshake. Check, in this order:
 1. Your clock: run `timedatectl`, and if it isn't synchronized, run `sudo timedatectl set-ntp true`. This matters most in VMs.
 2. Whether the same server works in another client.
-3. Whether your panel serves a different config by User-Agent. FLClashX CLI sends `FLClashX CLI <version>/mihomo <version>`, `flc help` shows it.
+3. Whether your panel serves a different config by User-Agent. FLClashX CLI sends `FLClashX CLI <version>/mihomo <version>`, `flc version` shows it.
 
 **TUN didn't come up.** Run `getcap` on `flc-core`. If the caps are missing, run `setcap` again.
 
@@ -222,7 +222,7 @@ The update only talks to GitHub over https, refuses redirects to anywhere else, 
 Bump `version` in `src/main.go`, commit `go.sum`, then:
 
 ```sh
-TAG=v0.2.5
+TAG=v0.2.6
 NAME=FLClashX-CLI-$TAG-linux-amd64
 MIHOMO=$(go list -m -f '{{.Version}}' github.com/metacubex/mihomo)
 
