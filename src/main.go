@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-var version = "0.2.4"
+var version = "0.2.5"
 
 const usageRu = `FLClashX CLI — консольный VPN-клиент на ядре mihomo
 

@@ -15,8 +15,8 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.2.4-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.2.4-linux-amd64
+tar xzf FLClashX-CLI-v0.2.5-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.2.5-linux-amd64
 ./install.sh
 ```
 
@@ -132,11 +132,11 @@ flags: auto          # country flags in server names: auto | emoji | text
 
 Changes apply on the next `flc start` or `flc restart`.
 
-**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.4/mihomo 1.19.32`. `flc help` shows the exact string.
+**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.5/mihomo 1.19.32`. `flc help` shows the exact string.
 
 **Country flags.** Server names often start with a flag like 🇩🇪. Some terminals, Alacritty among them, can't draw flags and show two letter boxes instead. With `flags: text` FLClashX CLI writes the country code in plain letters (`DE Germany`). `auto`, the default, keeps emoji in kitty, foot, WezTerm and Ghostty and when the output goes into a pipe, and uses letters everywhere else.
 
-**What `send-hwid` sends.** When it's on, every subscription download carries the headers Remnawave and similar panels use to tell devices apart:
+**What `send-hwid` sends.** When it's on, every subscription download carries the headers VPN panels use to tell devices apart:
 
 | Header | Value |
 |---|---|
@@ -222,7 +222,7 @@ The update only talks to GitHub over https, refuses redirects to anywhere else, 
 Bump `version` in `src/main.go`, commit `go.sum`, then:
 
 ```sh
-TAG=v0.2.4
+TAG=v0.2.5
 NAME=FLClashX-CLI-$TAG-linux-amd64
 MIHOMO=$(go list -m -f '{{.Version}}' github.com/metacubex/mihomo)
 

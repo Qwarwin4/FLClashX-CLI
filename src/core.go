@@ -12,8 +12,8 @@ import (
 	"github.com/metacubex/mihomo/component/updater"
 	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/hub/executor"
+	"github.com/metacubex/mihomo/hub/route"
 	"github.com/metacubex/mihomo/log"
 	"golang.org/x/sys/unix"
 )
@@ -90,10 +90,10 @@ func coreMain() {
 		die(T("ядро уже запущено", "the core is already running"))
 	}
 
-	opts := []hub.Option{hub.WithExternalControllerUnix(*sock), lockdown}
-	if err := hub.Parse(raw, opts...); err != nil {
+	if err := apply(raw); err != nil {
 		die(T("конфиг: %v", "config: %v"), err)
 	}
+	route.ReCreateServer(&route.Config{UnixAddr: *sock})
 	if updater.GeoAutoUpdate() {
 		updater.RegisterGeoUpdater()
 	}
@@ -108,12 +108,22 @@ func coreMain() {
 		}
 		b, err := readCfg(*file)
 		if err == nil {
-			err = hub.Parse(b, opts...)
+			err = apply(b)
 		}
 		if err != nil {
 			log.Errorln(T("перечитать конфиг не вышло: %v", "couldn't reload config: %v"), err)
 		}
 	}
+}
+
+func apply(raw []byte) error {
+	c, err := executor.ParseWithBytes(raw)
+	if err != nil {
+		return err
+	}
+	lockdown(c)
+	executor.ApplyConfig(c, true)
+	return nil
 }
 
 func lockdown(c *config.Config) {

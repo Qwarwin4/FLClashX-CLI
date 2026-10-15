@@ -200,7 +200,11 @@ func startCore(p *profile, s settings) error {
 	}
 
 	a := newAPI()
+	live, _ := a.graph()
 	for g, n := range p.Selected {
+		if live != nil && (!live.selector(g) || !slices.Contains(live[g].All, n)) {
+			continue
+		}
 		if err := a.choose(g, n); err != nil {
 			fmt.Fprintf(os.Stderr, T("не получилось вернуть %q в группе %q: %v\n", "couldn't restore %q in group %q: %v\n"), show(n), show(g), err)
 		}
