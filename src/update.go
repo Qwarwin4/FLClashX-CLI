@@ -3,21 +3,16 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/sha256"
 	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -35,13 +30,9 @@ var (
 )
 
 type release struct {
-	Tag    string `json:"tag_name"`
-	URL    string `json:"html_url"`
-	Body   string `json:"body"`
-	Assets []struct {
-		Name string `json:"name"`
-		URL  string `json:"browser_download_url"`
-	} `json:"assets"`
+	Tag  string `json:"tag_name"`
+	URL  string `json:"html_url"`
+	Body string `json:"body"`
 }
 
 func cmdCheckUpdates(args []string) error {
@@ -95,11 +86,9 @@ func ghClient() *http.Client {
 }
 
 var ghHosts = map[string]bool{
-	"api.github.com":                       true,
-	"github.com":                           true,
-	"codeload.github.com":                  true,
-	"objects.githubusercontent.com":        true,
-	"release-assets.githubusercontent.com": true,
+	"api.github.com":      true,
+	"github.com":          true,
+	"codeload.github.com": true,
 }
 
 func trusted(h string) bool { return ghHosts[h] }
@@ -219,25 +208,7 @@ func upgrade(cl *http.Client, r *release) error {
 	}
 	defer os.RemoveAll(work)
 
-	names := []string{
-		fmt.Sprintf("FLClashX-CLI-%s-linux-%s.tar.gz", r.Tag, runtime.GOARCH),
-		fmt.Sprintf("flc-%s-linux-%s.tar.gz", r.Tag, runtime.GOARCH),
-	}
-	var name, bin, sums string
-	for _, a := range r.Assets {
-		switch {
-		case a.Name == "SHA256SUMS":
-			sums = a.URL
-		case bin == "" && slices.Contains(names, a.Name):
-			name, bin = a.Name, a.URL
-		}
-	}
-	var from string
-	if bin != "" && sums != "" {
-		from, err = fromRelease(cl, work, name, bin, sums)
-	} else {
-		from, err = fromSource(cl, work, r.Tag)
-	}
+	from, err := fromSource(cl, work, r.Tag)
 	if err != nil {
 		return err
 	}
@@ -254,75 +225,8 @@ func upgrade(cl *http.Client, r *release) error {
 	return c.Run()
 }
 
-func fromRelease(cl *http.Client, work, name, bin, sums string) (string, error) {
-	for _, u := range []string{bin, sums} {
-		if p, err := url.Parse(u); err != nil || p.Scheme != "https" || !trusted(p.Hostname()) {
-			return "", fmt.Errorf(T("подозрительная ссылка на файл релиза: %s", "suspicious release file link: %s"), clean(u))
-		}
-	}
-
-	resp, err := ghGet(cl, sums)
-	if err != nil {
-		return "", err
-	}
-	list, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-	resp.Body.Close()
-	if err != nil {
-		return "", err
-	}
-	want := ""
-	for _, ln := range strings.Split(string(list), "\n") {
-		if f := strings.Fields(ln); len(f) == 2 && strings.TrimPrefix(f[1], "*") == name {
-			want = strings.ToLower(f[0])
-		}
-	}
-	if len(want) != 64 {
-		return "", fmt.Errorf(T("в SHA256SUMS нет %s", "%s is missing from SHA256SUMS"), name)
-	}
-
-	fmt.Printf(T("качаю %s...\n", "downloading %s...\n"), name)
-	resp, err = ghGet(cl, bin)
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(work, name)
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		resp.Body.Close()
-		return "", err
-	}
-	h := sha256.New()
-	n, err := io.Copy(io.MultiWriter(f, h), io.LimitReader(resp.Body, maxSrc+1))
-	resp.Body.Close()
-	if cerr := f.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return "", err
-	}
-	if n > maxSrc {
-		return "", errors.New(T("архив слишком большой", "archive is too big"))
-	}
-	if hex.EncodeToString(h.Sum(nil)) != want {
-		return "", errors.New(T("контрольная сумма не совпала, обновлять не буду", "checksum mismatch, not updating"))
-	}
-
-	f, err = os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	out, err := untar(f, filepath.Join(work, "x"))
-	f.Close()
-	if err != nil {
-		return "", fmt.Errorf(T("архив релиза битый: %w", "release archive is broken: %w"), err)
-	}
-
-	return out, nil
-}
-
 func fromSource(cl *http.Client, work, tag string) (string, error) {
-	fmt.Printf(T("готовой сборки под %s нет, собираю %s из исходников...\n",
-		"no prebuilt build for %s, building %s from source...\n"), runtime.GOARCH, tag)
+	fmt.Printf(T("собираю %s из исходников...\n", "building %s from source...\n"), tag)
 	resp, err := ghGet(cl, "https://codeload.github.com/"+repo+"/tar.gz/refs/tags/"+tag)
 	if err != nil {
 		return "", err

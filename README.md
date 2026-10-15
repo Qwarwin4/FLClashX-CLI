@@ -15,8 +15,8 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.2.6-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.2.6-linux-amd64
+tar xzf FLClashX-CLI-v0.2.7-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.2.7-linux-amd64
 ./install.sh
 ```
 
@@ -132,7 +132,7 @@ flags: auto          # country flags in server names: auto | emoji | text
 
 Changes apply on the next `flc start` or `flc restart`.
 
-**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.6/mihomo 1.19.32`. `flc version` shows the exact string.
+**User-Agent.** It isn't a setting: FLClashX CLI always introduces itself as `FLClashX CLI <version>/mihomo <version>`, for example `FLClashX CLI 0.2.7/mihomo 1.19.32`. `flc version` shows the exact string.
 
 **Country flags.** Server names often start with a flag like 🇩🇪. Some terminals, Alacritty among them, can't draw flags and show two letter boxes instead. With `flags: text` FLClashX CLI writes the country code in plain letters (`DE Germany`). `auto`, the default, keeps emoji in kitty, foot, WezTerm and Ghostty and when the output goes into a pipe, and uses letters everywhere else.
 
@@ -190,7 +190,7 @@ A VPN client handles your credentials and your network, so FLClashX CLI is caref
 - **No half-written files.** `config` edits a copy and only saves valid YAML. All writes are atomic, and concurrent commands wait for each other.
 - **Tight process handling.** `stop` checks the pid against `/proc`, so it never kills an unrelated process that happens to reuse the pid.
 - **Careful updates.**
-  - Prebuilt archives are checked against the release's `SHA256SUMS`.
+  - Updates are built from the tagged source on GitHub, nothing prebuilt is downloaded.
   - Only files that belong to you or root and that nobody else can write to get copied.
   - Root is asked for only where it has to be: writing into a root-owned folder, `setcap`, and removing the binaries on `flc delete`.
 
@@ -202,11 +202,9 @@ flc check-updates
 
 It asks GitHub for the latest release, shows what changed and waits for a `y` before touching anything. On yes it:
 
-1. downloads the prebuilt archive;
-2. checks it against `SHA256SUMS`;
+1. downloads the source of that release from GitHub;
+2. builds it with the same `install.sh`, so you need Go (the installer puts it in if it's missing);
 3. swaps `flc` and `flc-core` right where they are, whichever way you installed them.
-
-If the release has no build for your machine, it builds that tag from source instead.
 
 If anything fails, the old version stays put. If the VPN was running, it offers to restart it on the new version.
 
@@ -214,30 +212,15 @@ The update only talks to GitHub over https, refuses redirects to anywhere else, 
 
 ## Making a release
 
-`flc check-updates` looks at the latest GitHub release and expects two files there:
-
-- `FLClashX-CLI-<tag>-linux-amd64.tar.gz`, with `flc`, `install.sh` and `README.md` inside a single `FLClashX-CLI-<tag>-linux-amd64/` folder;
-- `SHA256SUMS`, which lists that archive.
-
-Bump `version` in `src/main.go`, commit `go.sum`, then:
+Bump `version` in `src/main.go`, commit, then tag that commit and publish a release for the tag:
 
 ```sh
-TAG=v0.2.6
-NAME=FLClashX-CLI-$TAG-linux-amd64
-MIHOMO=$(go list -m -f '{{.Version}}' github.com/metacubex/mihomo)
-
-mkdir -p dist/$NAME
-CGO_ENABLED=0 go build -trimpath -tags with_gvisor \
-  -ldflags "-s -w -buildid= -X main.version=${TAG#v} -X github.com/metacubex/mihomo/constant.Version=$MIHOMO" \
-  -o dist/$NAME/flc ./src
-cp install.sh README.md dist/$NAME/
-tar --owner=0 --group=0 --numeric-owner -C dist -czf dist/$NAME.tar.gz $NAME
-(cd dist && sha256sum $NAME.tar.gz >SHA256SUMS)
-
-gh release create $TAG dist/$NAME.tar.gz dist/SHA256SUMS --title $TAG
+git tag v0.2.7
+git push origin v0.2.7
+gh release create v0.2.7 --title v0.2.7 --notes-file notes.md
 ```
 
-A release without the archive still works: `check-updates` then builds that tag from source.
+No files need to be attached: `flc check-updates` builds the tag from source.
 
 ## Uninstall
 
