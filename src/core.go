@@ -93,6 +93,7 @@ func coreMain() {
 	if err := apply(raw); err != nil {
 		die(T("конфиг: %v", "config: %v"), err)
 	}
+	ctlRoutes(*file)
 	route.ReCreateServer(&route.Config{UnixAddr: *sock})
 	if updater.GeoAutoUpdate() {
 		updater.RegisterGeoUpdater()
@@ -106,10 +107,12 @@ func coreMain() {
 			log.Infoln(T("получен %s, выхожу", "got %s, exiting"), s)
 			return
 		}
+		reloadMu.Lock()
 		b, err := readCfg(*file)
 		if err == nil {
 			err = apply(b)
 		}
+		reloadMu.Unlock()
 		if err != nil {
 			log.Errorln(T("перечитать конфиг не вышло: %v", "couldn't reload config: %v"), err)
 		}

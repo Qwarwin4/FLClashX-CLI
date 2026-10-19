@@ -3,6 +3,8 @@ module github.com/Qwarwin4/flc
 go 1.24
 
 require (
+	github.com/metacubex/chi v0.1.1
+	github.com/metacubex/http v0.1.8
 	github.com/metacubex/mihomo v1.19.32
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sys v0.30.0

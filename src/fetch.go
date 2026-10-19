@@ -60,6 +60,9 @@ func download(raw string, s settings, allowHTTP bool) (*sub, error) {
 			if via[0].URL.Scheme == "https" && r.URL.Scheme != "https" {
 				return errors.New(T("редирект с https на http", "redirect from https to http"))
 			}
+			if !strings.EqualFold(r.URL.Hostname(), via[0].URL.Hostname()) {
+				dropPanel(r.Header)
+			}
 			return nil
 		},
 	}
@@ -68,16 +71,7 @@ func download(raw string, s settings, allowHTTP bool) (*sub, error) {
 	if err != nil {
 		return nil, errors.New(T("некорректная ссылка", "invalid link"))
 	}
-	req.Header.Set("User-Agent", userAgent())
-	if s.HWID {
-		if id := hwid(); id != "" {
-			d := deviceInfo()
-			req.Header.Set("x-hwid", id)
-			req.Header.Set("x-device-os", d.os)
-			req.Header.Set("x-ver-os", d.ver)
-			req.Header.Set("x-device-model", d.model)
-		}
-	}
+	req.Header = panelHeaders(s, u.Hostname())
 
 	resp, err := cl.Do(req)
 	if err != nil {
@@ -109,7 +103,7 @@ func download(raw string, s settings, allowHTTP bool) (*sub, error) {
 }
 
 func readLocal(p string) ([]byte, error) {
-	f, err := os.Open(p)
+	f, err := os.OpenFile(p, os.O_RDONLY|unix.O_NONBLOCK, 0)
 	if err != nil {
 		return nil, err
 	}

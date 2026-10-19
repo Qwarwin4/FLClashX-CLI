@@ -55,6 +55,7 @@ func cmdStart(args []string) error {
 	}
 	markStart()
 	printUp(st, p, s)
+	updateHint()
 	return nil
 }
 
@@ -110,11 +111,15 @@ func cmdStop(args []string) error {
 	}
 	defer unlock()
 
+	stopWatcher()
 	ok, err := stopCore()
 	if err != nil {
 		return err
 	}
 	clearStart()
+	if s, _ := readSettings(); s.WipeLog {
+		wipeLogs()
+	}
 	if ok {
 		fmt.Println(T("VPN остановлен", "VPN stopped"))
 	} else {
@@ -151,6 +156,7 @@ func cmdStatus(args []string) error {
 		for _, r := range rows {
 			fmt.Println(r[0] + ":" + strings.Repeat(" ", w-cells(r[0])+1) + r[1])
 		}
+		updateHint()
 	}()
 	if t, ok := upSince(pid); ok {
 		rows = append(rows, [2]string{T("в работе", "uptime"), uptime(t)})
@@ -176,6 +182,11 @@ func cmdStatus(args []string) error {
 	}
 	rows = append(rows, [2]string{T("режим", "mode"),
 		fmt.Sprintf(T("%s, TUN %s, прокси 127.0.0.1:%d", "%s, TUN %s, proxy 127.0.0.1:%d"), modeName(c.Mode), tun, c.MixedPort)})
+	if s, err := readSettings(); err == nil && s.Interval > 0 && p.URL != "" {
+		next := time.Until(p.Updated.Add(time.Duration(s.Interval) * time.Minute)).Round(time.Minute)
+		rows = append(rows, [2]string{T("подписка", "subscription"),
+			fmt.Sprintf(T("обновлена %s, следующая через %d мин", "updated %s, next in %d min"), p.Updated.Local().Format("15:04"), max(0, int(next.Minutes())))})
+	}
 	return nil
 }
 
@@ -514,11 +525,7 @@ func cmdUpdateProfile(args []string) error {
 	}
 
 	fmt.Println(T("качаю подписку...", "fetching subscription..."))
-	sb, err := download(p.URL, s, *allowHTTP || strings.HasPrefix(p.URL, "http://"))
-	if err != nil {
-		return err
-	}
-	cfg, err := normalize(sb.body)
+	cfg, sb, note, err := fetchProfile(p, s, *allowHTTP || strings.HasPrefix(p.URL, "http://"))
 	if err != nil {
 		return err
 	}
@@ -528,24 +535,20 @@ func cmdUpdateProfile(args []string) error {
 		return err
 	}
 	defer unlock()
-	if st, err = loadStore(); err != nil {
+	if st, p, err = saveProfile(p.ID, cfg, sb.info); err != nil {
 		return err
 	}
-	if p = st.byID(p.ID); p == nil {
-		return errors.New(T("пока качалась подписка, профиль удалили", "the profile was deleted while the subscription was downloading"))
-	}
-	if err := writeFile(p.path(), cfg); err != nil {
-		return err
-	}
-	p.Updated, p.Info = time.Now(), sb.info
-	if err := st.save(); err != nil {
-		return err
+	if note != "" {
+		fmt.Println(note)
 	}
 	fmt.Printf(T("профиль «%s» обновлён\n", "profile %q updated\n"), show(p.Name))
 
 	if st.Current == p.ID && corePid() > 0 {
-		fmt.Println(T("перезапускаю VPN...", "restarting the VPN..."))
-		return restart(p, s)
+		if err := reloadLive(p, s); err != nil {
+			fmt.Println(T("на лету применить не вышло, перезапускаю VPN...", "couldn't apply it live, restarting the VPN..."))
+			return restart(p, s)
+		}
+		fmt.Println(T("VPN подхватил новую подписку без перезапуска", "the VPN picked up the new subscription without a restart"))
 	}
 	return nil
 }

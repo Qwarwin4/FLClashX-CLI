@@ -98,7 +98,8 @@ func ghGet(cl *http.Client, url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent())
+	s, _ := readSettings()
+	req.Header.Set("User-Agent", agentFor(s))
 	req.Header.Set("Accept", "application/vnd.github+json")
 	resp, err := cl.Do(req)
 	if err != nil {

@@ -28,18 +28,35 @@ type form struct {
 }
 
 type field struct {
-	label func() string
-	help  func(*form) string
-	kind  int
-	opts  []string
-	show  func(string) string
-	get   func(*form) string
-	set   func(*form, string)
+	label  func() string
+	help   func(*form) string
+	kind   int
+	opts   []string
+	show   func(string) string
+	get    func(*form) string
+	set    func(*form, string)
+	lo, hi int
+	bad    func() string
+	ok     func(int) bool
 }
 
-func fields() []field {
+type tab struct {
+	name  func() string
+	items []field
+}
+
+func toggle(get func(*settings) *bool) (func(*form) string, func(*form, string)) {
+	return func(f *form) string { return strconv.FormatBool(*get(&f.s)) },
+		func(f *form, v string) { *get(&f.s) = v == "true" }
+}
+
+func tabs() []tab {
 	same := func(v string) string { return v }
-	return []field{
+	tg := func(label, help func() string, get func(*settings) *bool) field {
+		g, s := toggle(get)
+		return field{label: label, help: func(*form) string { return help() }, kind: kToggle, get: g, set: s}
+	}
+	general := []field{
 		{
 			label: func() string { return T("Язык", "Language") },
 			help: func(*form) string {
@@ -56,16 +73,12 @@ func fields() []field {
 			get: func(f *form) string { return f.lang },
 			set: func(f *form, v string) { f.lang, lang = v, v },
 		},
-		{
-			label: func() string { return T("Весь трафик (TUN)", "System-wide (TUN)") },
-			help: func(*form) string {
+		tg(func() string { return T("Весь трафик (TUN)", "System-wide (TUN)") },
+			func() string {
 				return T("Включено: через VPN идёт весь трафик системы. Выключено: работает только прокси на 127.0.0.1.",
 					"On: all system traffic goes through the VPN. Off: only the proxy on 127.0.0.1 works.")
 			},
-			kind: kToggle,
-			get:  func(f *form) string { return strconv.FormatBool(f.s.Tun) },
-			set:  func(f *form, v string) { f.s.Tun = v == "true" },
-		},
+			func(s *settings) *bool { return &s.Tun }),
 		{
 			label: func() string { return T("Стек TUN", "TUN stack") },
 			help: func(*form) string {
@@ -89,7 +102,12 @@ func fields() []field {
 					"Port of the local http/socks proxy. It only listens on 127.0.0.1.")
 			},
 			kind: kNumber,
-			get:  func(f *form) string { return strconv.Itoa(f.s.MixedPort) },
+			lo:   1,
+			hi:   65535,
+			bad: func() string {
+				return T("порт должен быть от 1 до 65535", "the port must be between 1 and 65535")
+			},
+			get: func(f *form) string { return strconv.Itoa(f.s.MixedPort) },
 			set: func(f *form, v string) {
 				if n, err := strconv.Atoi(v); err == nil {
 					f.s.MixedPort = n
@@ -111,32 +129,14 @@ func fields() []field {
 		{
 			label: func() string { return T("Подробность лога", "Log level") },
 			help: func(*form) string {
-				return T("Сколько ядро пишет в flc debug log.", "How much the core writes to flc debug log.")
+				return T("Сколько ядро пишет в flc debug log. На info в лог попадает каждый сайт, который ты открываешь.",
+					"How much the core writes to flc debug log. At info every site you open ends up in the log.")
 			},
 			kind: kChoice,
 			opts: levels,
 			show: same,
 			get:  func(f *form) string { return f.s.LogLevel },
 			set:  func(f *form, v string) { f.s.LogLevel = v },
-		},
-		{
-			label: func() string { return T("Передавать HWID", "Share HWID") },
-			help: func(f *form) string {
-				id := hwid()
-				if id == "" {
-					return T("На этой машине нет machine-id, передавать нечего.", "This machine has no machine-id, there's nothing to send.")
-				}
-				if !f.s.HWID {
-					return T("Панель не получит ничего, что связывает подписку с этим компьютером. Панели с лимитом устройств могут отказать.",
-						"The panel gets nothing that ties your subscription to this computer. Panels that limit devices may refuse.")
-				}
-				d := deviceInfo()
-				return fmt.Sprintf(T("Панель видит этот компьютер как %s… (%s, %s). Это хеш, сам machine-id никуда не уходит.",
-					"The panel sees this computer as %s… (%s, %s). It's a hash, the machine-id itself never leaves."), id[:12], d.ver, d.model)
-			},
-			kind: kToggle,
-			get:  func(f *form) string { return strconv.FormatBool(f.s.HWID) },
-			set:  func(f *form, v string) { f.s.HWID = v == "true" },
 		},
 		{
 			label: func() string { return T("Флаги стран", "Country flags") },
@@ -165,6 +165,116 @@ func fields() []field {
 			get: func(f *form) string { return f.s.Flags },
 			set: func(f *form, v string) { f.s.Flags = v },
 		},
+	}
+
+	updates := []field{
+		{
+			label: func() string { return T("Обновлять подписку", "Refresh subscription") },
+			help: func(*form) string {
+				return fmt.Sprintf(T("Раз в сколько минут обновлять активную подписку, пока VPN работает. 0 — не обновлять. От %d до %d минут.",
+					"How often, in minutes, to refresh the active subscription while the VPN runs. 0 = never. %d to %d minutes."), minInterval, maxInterval)
+			},
+			kind: kNumber,
+			lo:   0,
+			hi:   maxInterval,
+			bad: func() string {
+				return fmt.Sprintf(T("0 или от %d до %d минут", "0 or %d to %d minutes"), minInterval, maxInterval)
+			},
+			ok: func(n int) bool { return n == 0 || n >= minInterval },
+			show: func(v string) string {
+				if v == "0" {
+					return T("никогда", "never")
+				}
+				return fmt.Sprintf(T("каждые %s мин", "every %s min"), v)
+			},
+			get: func(f *form) string { return strconv.Itoa(f.s.Interval) },
+			set: func(f *form, v string) {
+				if n, err := strconv.Atoi(v); err == nil {
+					f.s.Interval = n
+				}
+			},
+		},
+		tg(func() string { return T("Сохранять свои правила", "Keep my rules") },
+			func() string {
+				return T("При обновлении подписки оставлять правила маршрутизации, которые ты правил в flc config. Если в новой подписке пропала группа, на которую они ссылаются, возьмутся правила подписки.",
+					"When a subscription is refreshed, keep the routing rules you edited in flc config. If a group they point to is gone from the new subscription, its own rules are used.")
+			},
+			func(s *settings) *bool { return &s.KeepRules }),
+		tg(func() string { return T("Проверять новые версии", "Check for new versions") },
+			func() string {
+				return T("Раз в сутки, пока работает VPN, спрашивать GitHub о новой версии FLClashX CLI. Сам ничего не ставит: покажет уведомление и подсказку в flc status.",
+					"Once a day, while the VPN runs, ask GitHub about a new FLClashX CLI version. It never installs anything by itself: you get a notification and a hint in flc status.")
+			},
+			func(s *settings) *bool { return &s.AutoCheck }),
+	}
+
+	privacy := []field{
+		{
+			label: func() string { return T("Скрывать HWID", "Hide HWID") },
+			help: func(f *form) string {
+				switch f.s.HWID {
+				case "fake":
+					return T("Панель получает подменный HWID: у каждой панели свой, с этим компьютером он не связан. Лимит устройств работает, в боте видно только его.",
+						"The panel gets a stand-in HWID, different for each panel and not tied to this computer. Device limits still work, the bot only shows the stand-in.")
+				case "none":
+					return T("HWID не передаётся совсем, а с ним и модель с системой. Панели с лимитом устройств могут отказать.",
+						"No HWID is sent at all, and neither are the model and OS. Panels that limit devices may refuse.")
+				}
+				id := hwid()
+				if id == "" {
+					return T("На этой машине нет machine-id, передавать нечего.", "This machine has no machine-id, there's nothing to send.")
+				}
+				return fmt.Sprintf(T("Не скрывается: панель видит %s… Это хеш, сам machine-id никуда не уходит.",
+					"Not hidden: the panel sees %s… It's a hash, the machine-id itself never leaves."), id[:12])
+			},
+			kind: kChoice,
+			opts: hwidModes,
+			show: func(v string) string {
+				switch v {
+				case "fake":
+					return T("подменять", "fake it")
+				case "none":
+					return T("не передавать", "don't send")
+				}
+				return T("нет", "no")
+			},
+			get: func(f *form) string { return f.s.HWID },
+			set: func(f *form, v string) { f.s.HWID = v },
+		},
+		tg(func() string { return T("Скрывать User-Agent", "Hide User-Agent") },
+			func() string {
+				return fmt.Sprintf(T("Вместо «%s» панель и GitHub видят обычный «%s», как у большинства clash-клиентов.",
+					"Instead of %q the panel and GitHub see a plain %q, like most clash clients send."), userAgent(), plainUA)
+			},
+			func(s *settings) *bool { return &s.HideUA }),
+		tg(func() string { return T("Скрывать устройство", "Hide device name") },
+			func() string {
+				return fmt.Sprintf(T("Не передавать панели модель компьютера (%s).", "Don't tell the panel the computer model (%s)."), deviceInfo().model)
+			},
+			func(s *settings) *bool { return &s.HideDevice }),
+		tg(func() string { return T("Скрывать систему", "Hide OS") },
+			func() string {
+				return fmt.Sprintf(T("Не передавать панели систему и её версию (%s).", "Don't tell the panel the OS and its version (%s)."), deviceInfo().ver)
+			},
+			func(s *settings) *bool { return &s.HideOS }),
+		tg(func() string { return T("Скрывать приложения", "Hide apps") },
+			func() string {
+				return T("Ядро не выясняет, какое приложение открыло соединение, и не пишет его в лог. Правила по процессам (PROCESS-NAME) перестанут работать.",
+					"The core doesn't look up which app opened a connection and keeps it out of the log. PROCESS-NAME rules stop working.")
+			},
+			func(s *settings) *bool { return &s.HideProc }),
+		tg(func() string { return T("Стирать лог", "Wipe the log") },
+			func() string {
+				return T("После flc stop удалять лог ядра вместе с историей соединений, а при старте не хранить лог прошлого запуска.",
+					"After flc stop delete the core log with its connection history, and don't keep the previous run's log on start.")
+			},
+			func(s *settings) *bool { return &s.WipeLog }),
+	}
+
+	return []tab{
+		{name: func() string { return T("Основные", "General") }, items: general},
+		{name: func() string { return T("Обновления", "Updates") }, items: updates},
+		{name: func() string { return T("Приватность", "Privacy") }, items: privacy},
 	}
 }
 
@@ -247,6 +357,8 @@ func readEvents(b []byte) []ev {
 type tui struct {
 	f     form
 	orig  form
+	tabs  []tab
+	tab   int
 	items []field
 	cur   int
 	edit  bool
@@ -255,6 +367,8 @@ type tui struct {
 	msg   string
 	w, h  int
 
+	tabY  int
+	tabX  [][2]int
 	rowY  int
 	valX  int
 	btnY  int
@@ -270,6 +384,15 @@ func (u *tui) nbtn() int { return len(u.items) + 2 }
 
 func (u *tui) move(d int) {
 	u.cur = (u.cur + d + u.nbtn()) % u.nbtn()
+}
+
+func (u *tui) setTab(i int) {
+	if u.edit && !u.commit() {
+		return
+	}
+	u.tab = (i + len(u.tabs)) % len(u.tabs)
+	u.items = u.tabs[u.tab].items
+	u.cur = 0
 }
 
 func (u *tui) cycle(it field, d int) {
@@ -310,15 +433,12 @@ func (u *tui) activate(d int) {
 func (u *tui) commit() bool {
 	it := u.items[u.cur]
 	v := strings.TrimSpace(string(u.buf))
-	switch it.kind {
-	case kNumber:
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 1 || n > 65535 {
-			u.msg = T("порт должен быть от 1 до 65535", "the port must be between 1 and 65535")
-			return false
-		}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < it.lo || n > it.hi || (it.ok != nil && !it.ok(n)) {
+		u.msg = it.bad()
+		return false
 	}
-	it.set(&u.f, v)
+	it.set(&u.f, strconv.Itoa(n))
 	u.edit = false
 	u.msg = ""
 	return true
@@ -365,10 +485,9 @@ func (u *tui) handle(e ev) {
 	}
 
 	if u.edit {
-		it := u.items[u.cur]
 		switch e.key {
 		case "rune":
-			if it.kind == kNumber && (e.r < '0' || e.r > '9' || len(u.buf) >= 5) {
+			if e.r < '0' || e.r > '9' || len(u.buf) >= 5 {
 				return
 			}
 			u.buf = append(u.buf, e.r)
@@ -376,9 +495,9 @@ func (u *tui) handle(e ev) {
 			if len(u.buf) > 0 {
 				u.buf = u.buf[:len(u.buf)-1]
 			}
-		case "enter", "tab":
+		case "enter":
 			u.commit()
-		case "up", "down", "btab":
+		case "up", "down", "tab", "btab":
 			if u.commit() {
 				u.handle(ev{key: e.key})
 			}
@@ -394,10 +513,14 @@ func (u *tui) handle(e ev) {
 	u.msg = ""
 	onField := u.cur < len(u.items)
 	switch e.key {
-	case "up", "btab":
+	case "up":
 		u.move(-1)
-	case "down", "tab":
+	case "down":
 		u.move(1)
+	case "tab":
+		u.setTab(u.tab + 1)
+	case "btab":
+		u.setTab(u.tab - 1)
 	case "left":
 		if onField {
 			u.activate(-1)
@@ -432,6 +555,10 @@ func (u *tui) handle(e ev) {
 			u.save()
 		case 'q', 'й':
 			u.quit()
+		case '1', '2', '3', '4', '5':
+			if i := int(e.r - '1'); i < len(u.tabs) {
+				u.setTab(i)
+			}
 		}
 	}
 }
@@ -453,6 +580,15 @@ func (u *tui) click(e ev) {
 		return
 	}
 	if u.edit && !u.commit() {
+		return
+	}
+
+	if e.my == u.tabY {
+		for i, x := range u.tabX {
+			if e.mx >= x[0] && e.mx <= x[1] {
+				u.setTab(i)
+			}
+		}
 		return
 	}
 
@@ -537,17 +673,26 @@ func (u *tui) value(it field, editing bool) string {
 	case kChoice:
 		return "‹ " + it.show(v) + " ›"
 	}
+	if it.show != nil {
+		return it.show(v)
+	}
 	return v
 }
+
+const helpLines = 4
 
 func (u *tui) draw() string {
 	var b strings.Builder
 	b.WriteString("\x1b[H\x1b[J")
 
 	n := len(u.items)
-	need := n + 12
-	W := min(68, u.w)
-	if u.w < 44 || u.h < need {
+	most := 0
+	for _, t := range u.tabs {
+		most = max(most, len(t.items))
+	}
+	need := most + 11 + helpLines
+	W := min(72, u.w)
+	if u.w < 48 || u.h < need {
 		b.WriteString(T("Окно слишком маленькое. Растяни его или нажми q.",
 			"The window is too small. Make it bigger or press q."))
 		return b.String()
@@ -560,6 +705,10 @@ func (u *tui) draw() string {
 		at(y)
 		b.WriteString("│" + inner + cReset + "│")
 	}
+	sep := func(y int) {
+		at(y)
+		b.WriteString("├" + strings.Repeat("─", iw) + "┤")
+	}
 
 	title := " " + T("Настройки FLClashX CLI", "FLClashX CLI settings") + " "
 	if u.dirty() {
@@ -567,13 +716,35 @@ func (u *tui) draw() string {
 	}
 	at(y0)
 	b.WriteString("┌─" + cBold + cCyan + title + cReset + strings.Repeat("─", max(0, iw-1-utf8.RuneCountInString(title))) + "┐")
-	row(y0+1, strings.Repeat(" ", iw))
 
-	lw := 22
+	u.tabY = y0 + 1
+	u.tabX = u.tabX[:0]
+	bar, x := " ", x0+2
+	for i, t := range u.tabs {
+		name := " " + t.name() + " "
+		w := utf8.RuneCountInString(name)
+		u.tabX = append(u.tabX, [2]int{x, x + w - 1})
+		if i == u.tab {
+			bar += cRev + cBold + name + cReset
+		} else {
+			bar += name
+		}
+		bar += " "
+		x += w + 1
+	}
+	row(u.tabY, bar+strings.Repeat(" ", max(0, iw-(x-x0-1))))
+	sep(y0 + 2)
+
+	lw := 24
 	vw := iw - 2 - lw - 1
-	u.rowY = y0 + 2
+	u.rowY = y0 + 3
 	u.valX = x0 + 1 + 2 + lw
-	for i, it := range u.items {
+	for i := 0; i < most; i++ {
+		if i >= n {
+			row(u.rowY+i, strings.Repeat(" ", iw))
+			continue
+		}
+		it := u.items[i]
 		sel := i == u.cur
 		editing := sel && u.edit
 		mark := "  "
@@ -592,38 +763,35 @@ func (u *tui) draw() string {
 		}
 	}
 
-	y := u.rowY + n
+	y := u.rowY + most
 	row(y, strings.Repeat(" ", iw))
-	sep := func(y int) {
-		at(y)
-		b.WriteString("├" + strings.Repeat("─", iw) + "┤")
-	}
 	sep(y + 1)
 
 	help := ""
-	if u.cur < n {
+	switch {
+	case u.cur < n:
 		help = u.items[u.cur].help(&u.f)
-	} else if u.cur == n {
+	case u.cur == n:
 		help = T("Сохранить настройки и выйти.", "Save the settings and leave.")
-	} else {
+	default:
 		help = T("Выйти без сохранения.", "Leave without saving.")
 	}
 	hl := wrap(help, iw-2)
-	for i := 0; i < 3; i++ {
+	for i := 0; i < helpLines; i++ {
 		s := ""
 		if i < len(hl) {
 			s = hl[i]
 		}
 		row(y+2+i, " "+cDim+fit(s, iw-2)+cReset+" ")
 	}
-	sep(y + 5)
+	sep(y + 2 + helpLines)
 
 	bs := "[ " + T("Сохранить", "Save") + " ]"
 	bq := "[ " + T("Отмена", "Cancel") + " ]"
 	gap := 4
 	total := utf8.RuneCountInString(bs) + gap + utf8.RuneCountInString(bq)
 	pad := (iw - total) / 2
-	u.btnY = y + 6
+	u.btnY = y + 3 + helpLines
 	u.saveX = [2]int{x0 + 1 + pad, x0 + pad + utf8.RuneCountInString(bs)}
 	u.quitX = [2]int{u.saveX[1] + 1 + gap, u.saveX[1] + gap + utf8.RuneCountInString(bq)}
 	btn := func(s string, on bool) string {
@@ -634,18 +802,18 @@ func (u *tui) draw() string {
 	}
 	row(u.btnY, strings.Repeat(" ", pad)+btn(bs, u.cur == n)+strings.Repeat(" ", gap)+
 		btn(bq, u.cur == n+1)+strings.Repeat(" ", iw-pad-total))
-	at(y + 7)
+	at(u.btnY + 1)
 	b.WriteString("└" + strings.Repeat("─", iw) + "┘")
 
-	at(y + 8)
-	hint := T("↑↓ выбор  ←→ Enter изменить  s сохранить  q выход  мышь тоже",
-		"↑↓ move  ←→ Enter change  s save  q quit  mouse works too")
+	at(u.btnY + 2)
+	hint := T("Tab раздел  ↑↓ выбор  ←→ Enter изменить  s сохранить  q выход",
+		"Tab section  ↑↓ move  ←→ Enter change  s save  q quit")
 	if u.edit {
 		hint = T("Enter готово  Esc отменить", "Enter done  Esc cancel")
 	}
 	b.WriteString(cDim + fit(" "+hint, W) + cReset)
 
-	at(y + 9)
+	at(u.btnY + 3)
 	switch {
 	case u.ask:
 		b.WriteString(cYel + fit(" "+T("Не сохранено: s сохранить · y выйти без сохранения · n назад",
@@ -707,7 +875,8 @@ func runTUI(f form) (form, bool, error) {
 	defer signal.Stop(winch)
 	defer signal.Stop(stop)
 
-	u := &tui{f: f, orig: f, items: fields()}
+	u := &tui{f: f, orig: f, tabs: tabs()}
+	u.items = u.tabs[0].items
 	u.w, u.h = termSize()
 	os.Stdout.WriteString(u.draw())
 
@@ -794,8 +963,12 @@ func cmdSettings(args []string) error {
 	}
 	fmt.Println(T("настройки сохранены", "settings saved"))
 
+	if corePid() > 0 && (now.s.Interval > 0 || now.s.AutoCheck) {
+		spawnWatcher()
+	}
 	core := now.s.Tun != was.s.Tun || now.s.Stack != was.s.Stack ||
-		now.s.MixedPort != was.s.MixedPort || now.s.LogLevel != was.s.LogLevel
+		now.s.MixedPort != was.s.MixedPort || now.s.LogLevel != was.s.LogLevel ||
+		now.s.HideProc != was.s.HideProc
 	if corePid() == 0 || (!core && now.s.Mode == was.s.Mode) {
 		return nil
 	}
@@ -817,6 +990,10 @@ func cmdSettings(args []string) error {
 			fixGlobal(a, p)
 		}
 		fmt.Printf(T("режим: %s\n", "mode: %s\n"), modeName(now.s.Mode))
+		return nil
+	}
+	if err := reloadLive(p, now.s); err == nil {
+		fmt.Println(T("VPN подхватил настройки без перезапуска", "the VPN picked up the settings without a restart"))
 		return nil
 	}
 	if !confirm(T("VPN запущен, перезапустить, чтобы применить?", "The VPN is running, restart it to apply?"), true) {

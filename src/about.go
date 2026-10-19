@@ -43,18 +43,41 @@ func tilde(p string) string {
 	return p
 }
 
+func hwidState(s settings) string {
+	switch s.HWID {
+	case "none":
+		return T("не передаётся", "not sent")
+	case "fake":
+		return T("подменный, свой для каждой панели", "a stand-in, different for each panel")
+	}
+	if id := hwid(); id != "" {
+		return id[:12] + "…"
+	}
+	return T("нет machine-id", "no machine-id")
+}
+
 func about() string {
 	s, _ := readSettings()
 
-	id := hwid()
-	hw := T("не передаётся", "not sent")
-	switch {
-	case id == "":
-		hw = T("нет machine-id", "no machine-id")
-	case s.HWID:
-		hw = id[:12] + "…"
-	}
+	hw := hwidState(s)
 	d := deviceInfo()
+	hidden := T(" (панели не передаётся)", " (not sent to panels)")
+	sent := s.HWID == "fake" || s.HWID == "real" && hwid() != ""
+	sys, dev := d.ver+", "+runtime.GOARCH, d.model
+	if s.HideOS || !sent {
+		sys += hidden
+	}
+	if s.HideDevice || !sent {
+		dev += hidden
+	}
+	ua := agentFor(s)
+	if s.HideUA {
+		ua += T(" (настоящий скрыт)", " (the real one is hidden)")
+	}
+	upd := T("выкл", "off")
+	if s.Interval > 0 {
+		upd = fmt.Sprintf(T("каждые %d мин", "every %d min"), s.Interval)
+	}
 
 	fl := T("эмодзи", "emoji")
 	if flagLetters(s.Flags) {
@@ -72,10 +95,11 @@ func about() string {
 	rows := [][2]string{
 		{T("версия", "version"), strings.TrimPrefix(version, "v")},
 		{"mihomo", coreVersion()},
-		{"User-Agent", userAgent()},
+		{"User-Agent", ua},
 		{"HWID", hw},
-		{T("система", "system"), d.ver + ", " + runtime.GOARCH},
-		{T("устройство", "device"), d.model},
+		{T("система", "system"), sys},
+		{T("устройство", "device"), dev},
+		{T("подписка", "subscription"), upd},
 		{T("флаги", "flags"), fl},
 		{T("стеки TUN", "TUN stacks"), st},
 		{T("настройки", "settings"), tilde(settingsPath())},

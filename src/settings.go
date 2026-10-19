@@ -12,7 +12,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-const defRu = `# Настройки flc. Применяются при следующем flc start.
+const defRu = `# Настройки FLClashX CLI. То же самое меняется в flc settings.
 
 # весь трафик системы через VPN (TUN). false — только локальный прокси
 tun: true
@@ -24,13 +24,31 @@ mixed-port: 7890
 mode: rule
 # silent | error | warning | info | debug
 log-level: info
-# слать x-hwid (sha256 от machine-id) — нужно панелям с лимитом устройств
-send-hwid: true
 # флаги стран в именах серверов: auto | emoji | text (text — код страны буквами)
 flags: auto
+
+# обновлять активную подписку каждые N минут, пока VPN запущен. 0 — не обновлять
+update-interval: 0
+# при обновлении подписки оставлять свои правила маршрутизации
+keep-rules: false
+# раз в сутки проверять, не вышла ли новая версия FLClashX CLI
+check-updates: true
+
+# HWID для панели: real — хеш machine-id, fake — подменный, свой для каждой панели, none — не передавать
+hide-hwid: real
+# слать панели нейтральный User-Agent clash.meta вместо FLClashX CLI
+hide-user-agent: false
+# не передавать панели модель компьютера
+hide-device: false
+# не передавать панели систему и её версию
+hide-os: false
+# не определять, какое приложение открыло соединение (и не писать это в лог)
+hide-processes: false
+# стирать лог ядра после flc stop
+wipe-log: false
 `
 
-const defEn = `# flc settings. Applied on the next flc start.
+const defEn = `# FLClashX CLI settings. flc settings changes the same things.
 
 # route all system traffic through the VPN (TUN). false = local proxy only
 tun: true
@@ -42,22 +60,48 @@ mixed-port: 7890
 mode: rule
 # silent | error | warning | info | debug
 log-level: info
-# send x-hwid (sha256 of machine-id), needed by panels that limit devices
-send-hwid: true
 # country flags in server names: auto | emoji | text (text = country code in letters)
 flags: auto
+
+# refresh the active subscription every N minutes while the VPN runs. 0 = never
+update-interval: 0
+# keep your own routing rules when a subscription is refreshed
+keep-rules: false
+# check once a day whether a new FLClashX CLI version is out
+check-updates: true
+
+# HWID for the panel: real = hash of machine-id, fake = a stand-in, different per panel, none = don't send
+hide-hwid: real
+# send the panel a neutral User-Agent, clash.meta, instead of FLClashX CLI
+hide-user-agent: false
+# don't tell the panel the computer model
+hide-device: false
+# don't tell the panel the OS and its version
+hide-os: false
+# don't track which app opened a connection (and keep it out of the log)
+hide-processes: false
+# wipe the core log after flc stop
+wipe-log: false
 `
 
 func settingsPath() string { return filepath.Join(dir.cfg, "settings.yaml") }
 
 type settings struct {
-	Tun       bool   `yaml:"tun"`
-	Stack     string `yaml:"tun-stack"`
-	MixedPort int    `yaml:"mixed-port"`
-	Mode      string `yaml:"mode"`
-	LogLevel  string `yaml:"log-level"`
-	HWID      bool   `yaml:"send-hwid"`
-	Flags     string `yaml:"flags"`
+	Tun        bool   `yaml:"tun"`
+	Stack      string `yaml:"tun-stack"`
+	MixedPort  int    `yaml:"mixed-port"`
+	Mode       string `yaml:"mode"`
+	LogLevel   string `yaml:"log-level"`
+	Flags      string `yaml:"flags"`
+	Interval   int    `yaml:"update-interval"`
+	KeepRules  bool   `yaml:"keep-rules"`
+	AutoCheck  bool   `yaml:"check-updates"`
+	HWID       string `yaml:"hide-hwid"`
+	HideUA     bool   `yaml:"hide-user-agent"`
+	HideDevice bool   `yaml:"hide-device"`
+	HideOS     bool   `yaml:"hide-os"`
+	HideProc   bool   `yaml:"hide-processes"`
+	WipeLog    bool   `yaml:"wipe-log"`
 }
 
 func loadSettings() (settings, error) {
@@ -81,6 +125,12 @@ func readSettings() (settings, error) {
 	if err := yaml.Unmarshal(b, &s); err != nil {
 		return s, fmt.Errorf("%s: %w", p, err)
 	}
+	var old struct {
+		Send *bool `yaml:"send-hwid"`
+	}
+	if yaml.Unmarshal(b, &old) == nil && old.Send != nil && !*old.Send && !strings.Contains(string(b), "\nhide-hwid:") {
+		s.HWID = "none"
+	}
 
 	if s.Mode == "rules" {
 		s.Mode = "rule"
@@ -103,6 +153,10 @@ func (s settings) bad() string {
 		return "log-level"
 	case !slices.Contains(flagModes, s.Flags):
 		return "flags"
+	case s.Interval != 0 && (s.Interval < minInterval || s.Interval > maxInterval):
+		return "update-interval"
+	case !slices.Contains(hwidModes, s.HWID):
+		return "hide-hwid"
 	}
 	return ""
 }
@@ -112,6 +166,12 @@ var (
 	modes     = []string{"rule", "global", "direct"}
 	levels    = []string{"silent", "error", "warning", "info", "debug"}
 	flagModes = []string{"auto", "emoji", "text"}
+	hwidModes = []string{"real", "fake", "none"}
+)
+
+const (
+	minInterval = 5
+	maxInterval = 10080
 )
 
 func note(k string) []string {
@@ -124,7 +184,12 @@ func note(k string) []string {
 	return nil
 }
 
-var oldUA = []string{"# User-Agent при скачивании подписки", "# User-Agent used to fetch subscriptions"}
+var oldLines = []string{
+	"# User-Agent при скачивании подписки", "# User-Agent used to fetch subscriptions",
+	"# слать x-hwid (sha256 от machine-id) — нужно панелям с лимитом устройств",
+	"# send x-hwid (sha256 of machine-id), needed by panels that limit devices",
+	"# Настройки flc. Применяются при следующем flc start.", "# flc settings. Applied on the next flc start.",
+}
 
 func saveSettings(s settings) error {
 	if k := s.bad(); k != "" {
@@ -143,11 +208,14 @@ func saveSettings(s settings) error {
 		v any
 	}{
 		{"tun", s.Tun}, {"tun-stack", s.Stack}, {"mixed-port", s.MixedPort}, {"mode", s.Mode},
-		{"log-level", s.LogLevel}, {"send-hwid", s.HWID}, {"flags", s.Flags},
+		{"log-level", s.LogLevel}, {"flags", s.Flags}, {"update-interval", s.Interval},
+		{"keep-rules", s.KeepRules}, {"check-updates", s.AutoCheck}, {"hide-hwid", s.HWID},
+		{"hide-user-agent", s.HideUA}, {"hide-device", s.HideDevice}, {"hide-os", s.HideOS},
+		{"hide-processes", s.HideProc}, {"wipe-log", s.WipeLog},
 	}
 	var lines []string
 	for _, l := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {
-		if !strings.HasPrefix(l, "user-agent:") && !slices.Contains(oldUA, l) {
+		if !strings.HasPrefix(l, "user-agent:") && !strings.HasPrefix(l, "send-hwid:") && !slices.Contains(oldLines, l) {
 			lines = append(lines, l)
 		}
 	}

@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-var version = "0.2.7"
+var version = "0.3.0"
 
 const usageRu = `FLClashX CLI — консольный VPN-клиент на ядре mihomo
 
@@ -103,6 +103,7 @@ var cmds = map[string]func([]string) error{
 	"lang":           cmdLang,
 	"check-updates":  cmdCheckUpdates,
 	"delete":         cmdDelete,
+	watchArg:         cmdWatch,
 }
 
 func main() {
@@ -127,6 +128,7 @@ func main() {
 		fmt.Println("FLClashX CLI", version)
 		if derr == nil {
 			fmt.Print(about())
+			updateHint()
 		}
 		return
 	}

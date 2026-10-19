@@ -47,6 +47,12 @@ func buildConfig(p *profile, s settings) ([]byte, error) {
 	m["mode"] = s.Mode
 	m["log-level"] = s.LogLevel
 	m["profile"] = map[string]any{"store-selected": false, "store-fake-ip": true}
+	if s.HideProc {
+		m["find-process-mode"] = "off"
+	}
+	if err := plainHTTP(p, m); err != nil {
+		return nil, err
+	}
 	if ntp, ok := m["ntp"].(map[string]any); ok {
 		ntp["write-to-system"] = false
 	}
@@ -80,6 +86,31 @@ func buildConfig(p *profile, s settings) ([]byte, error) {
 	}
 
 	return yaml.Marshal(m)
+}
+
+func plainHTTP(p *profile, m map[string]any) error {
+	if !strings.HasPrefix(p.URL, "https://") {
+		return nil
+	}
+	if gx, ok := m["geox-url"].(map[string]any); ok {
+		for _, v := range gx {
+			if u, _ := v.(string); !strings.HasPrefix(u, "https://") {
+				delete(m, "geox-url")
+				break
+			}
+		}
+	}
+	for _, key := range []string{"proxy-providers", "rule-providers"} {
+		ps, _ := m[key].(map[string]any)
+		for name, v := range ps {
+			pv, _ := v.(map[string]any)
+			if u, _ := pv["url"].(string); strings.HasPrefix(strings.ToLower(u), "http://") {
+				return fmt.Errorf(T("в профиле «%s» провайдер «%s» качается по обычному http, по дороге его могут подменить. Нужен https",
+					"in profile %q the provider %q is fetched over plain http and could be swapped on the way. It needs https"), p.Name, clean(name))
+			}
+		}
+	}
+	return nil
 }
 
 func stack(want string) string {
@@ -164,7 +195,12 @@ func startCore(p *profile, s settings) error {
 		return err
 	}
 
-	_ = os.Rename(logPath(), logPath()+".1")
+	if s.WipeLog {
+		_ = os.Remove(logPath() + ".1")
+		_ = os.Remove(logPath())
+	} else {
+		_ = os.Rename(logPath(), logPath()+".1")
+	}
 	lf, err := os.OpenFile(logPath(), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
@@ -200,6 +236,34 @@ func startCore(p *profile, s settings) error {
 	}
 
 	a := newAPI()
+	restoreSel(a, p, s)
+	if s.Tun {
+		if c, err := a.configs(); err == nil && !c.Tun.Enable {
+			fmt.Fprintln(os.Stderr, T("внимание: TUN не поднялся, работает только прокси на 127.0.0.1. Причина в flc debug log",
+				"warning: TUN didn't come up, only the proxy on 127.0.0.1 works. See flc debug log for why"))
+		}
+	}
+	spawnWatcher()
+	return nil
+}
+
+func reloadLive(p *profile, s settings) error {
+	cfg, err := buildConfig(p, s)
+	if err != nil {
+		return err
+	}
+	if err := writeFile(runCfg(), cfg); err != nil {
+		return err
+	}
+	a := newAPI()
+	if err := a.reload(); err != nil {
+		return err
+	}
+	restoreSel(a, p, s)
+	return nil
+}
+
+func restoreSel(a *api, p *profile, s settings) {
 	live, _ := a.graph()
 	for g, n := range p.Selected {
 		if live != nil && (!live.selector(g) || !slices.Contains(live[g].All, n)) {
@@ -212,13 +276,6 @@ func startCore(p *profile, s settings) error {
 	if s.Mode == "global" {
 		fixGlobal(a, p)
 	}
-	if s.Tun {
-		if c, err := a.configs(); err == nil && !c.Tun.Enable {
-			fmt.Fprintln(os.Stderr, T("внимание: TUN не поднялся, работает только прокси на 127.0.0.1. Причина в flc debug log",
-				"warning: TUN didn't come up, only the proxy on 127.0.0.1 works. See flc debug log for why"))
-		}
-	}
-	return nil
 }
 
 func waitReady(died <-chan error) error {
@@ -265,6 +322,12 @@ func stopCore() (bool, error) {
 	}
 	cleanup()
 	return true, nil
+}
+
+func wipeLogs() {
+	for _, p := range []string{logPath(), logPath() + ".1", watchLog()} {
+		_ = os.Remove(p)
+	}
 }
 
 func cleanup() {

@@ -94,6 +94,7 @@ func cmdDelete(args []string) error {
 		return nil
 	}
 
+	stopWatcher()
 	if _, err := stopCore(); err != nil {
 		return err
 	}

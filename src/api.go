@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -97,7 +98,16 @@ func (a *api) matchTarget() string {
 }
 
 func (a *api) setMode(m string) error {
-	return a.do(http.MethodPatch, "/configs", map[string]string{"mode": m}, nil)
+	err := a.do(http.MethodPut, "/flc/mode", map[string]string{"mode": m}, nil)
+	if err != nil && strings.Contains(err.Error(), "404") {
+		return a.do(http.MethodPatch, "/configs", map[string]string{"mode": m}, nil)
+	}
+	return err
+}
+
+func (a *api) reload() error {
+	slow := &api{hc: &http.Client{Timeout: 90 * time.Second, Transport: a.hc.Transport}}
+	return slow.do(http.MethodPost, "/flc/reload", nil, nil)
 }
 
 type coreCfg struct {
