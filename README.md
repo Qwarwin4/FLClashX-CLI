@@ -1,5 +1,9 @@
 # FLClashX CLI
 
+[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:qwarwin@gmail.com)
+[![Telegram](https://img.shields.io/badge/Telegram-channel-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/qwarwin4git)
+
+
 A terminal VPN client for Linux, built on the [mihomo](https://github.com/MetaCubeX/mihomo) core, the same engine inside [FlClashX](https://github.com/pluralplay/FlClashX), just without the window.
 
 Client runs in the background, you talk to it with a few short commands, and that's it. No window, no tray icon, nothing to babysit.
