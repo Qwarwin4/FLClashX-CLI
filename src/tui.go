@@ -140,22 +140,10 @@ func tabs() []tab {
 			set:  func(f *form, v string) { f.s.Mode = v },
 		},
 		{
-			label: func() string { return T("Приложения через VPN", "Apps through VPN") },
+			label: func() string { return T("Обход VPN", "Bypass VPN") },
 			help: func(*form) string {
-				return T("Эти программы всегда идут через VPN, что бы ни говорили правила. Имена через запятую: discord, telegram-desktop. Можно со звёздочкой: discord*. Нужен TUN и режим rules.",
-					"These apps always go through the VPN, whatever the rules say. Names, comma separated: discord, telegram-desktop. Wildcards work: discord*. Needs TUN and rules mode.")
-			},
-			kind:  kText,
-			check: appsBad,
-			show:  appsShow,
-			get:   func(f *form) string { return f.s.AppsVPN },
-			set:   func(f *form, v string) { f.s.AppsVPN = tidyApps(v) },
-		},
-		{
-			label: func() string { return T("Приложения мимо VPN", "Apps bypassing VPN") },
-			help: func(*form) string {
-				return T("Эти программы всегда идут напрямую, мимо VPN. Например, игры или торрент-клиент. Имена через запятую, нужен TUN и режим rules.",
-					"These apps always go direct, around the VPN, like games or a torrent client. Names, comma separated. Needs TUN and rules mode.")
+				return T("Эти программы идут мимо туннеля со своим настоящим IP, для тех, кто не работает с VPN. Имена через запятую: discord, steam, можно с *. Нужен режим rules.",
+					"These apps go around the tunnel with your real IP, for the ones that refuse to work over a VPN. Names, comma separated: discord, steam, * works. Needs rules mode.")
 			},
 			kind:  kText,
 			check: appsBad,
@@ -1028,8 +1016,7 @@ func cmdSettings(args []string) error {
 	}
 	core := now.s.Tun != was.s.Tun || now.s.Stack != was.s.Stack ||
 		now.s.MixedPort != was.s.MixedPort || now.s.LogLevel != was.s.LogLevel ||
-		now.s.HideProc != was.s.HideProc || now.s.AppsVPN != was.s.AppsVPN ||
-		now.s.AppsDirect != was.s.AppsDirect
+		now.s.HideProc != was.s.HideProc || now.s.AppsDirect != was.s.AppsDirect
 	if corePid() == 0 || (!core && now.s.Mode == was.s.Mode) {
 		return nil
 	}

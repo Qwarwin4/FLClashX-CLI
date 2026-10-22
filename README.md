@@ -132,8 +132,7 @@ mode: rule              # rule | global | direct, same as flc change-mode
 log-level: info         # silent | error | warning | info | debug
 flags: auto             # country flags in server names: auto | emoji | text
 autostart: false        # start the VPN when you log in
-apps-vpn: ""            # apps that always go through the VPN: discord, telegram-desktop
-apps-direct: ""         # apps that always go around it
+apps-direct: ""         # apps that go around the VPN tunnel: discord, steam
 
 update-interval: 0      # refresh the active subscription every N minutes while the VPN runs; 0 = never
 keep-rules: false       # keep your own routing rules when a subscription is refreshed
@@ -149,7 +148,7 @@ wipe-log: false
 
 **Start on login.** With systemd, FLClashX CLI sets itself up as a user service, `~/.config/systemd/user/flclashx-cli.service`, so no root is needed. Without systemd it drops a file into `~/.config/autostart/`. That works in desktop environments, but bare window managers usually ignore it, so add `flc start` to your WM's config instead.
 
-**Apps.** `apps-vpn` sends the listed apps through the VPN whatever the subscription's rules say, `apps-direct` sends them straight past it. Names are the process names, case doesn't matter, and `*` works as a wildcard: `discord, vesktop*`. This needs TUN, the `rules` mode, and `hide-processes` off, because the core has to know which app opened a connection.
+**Bypass VPN.** Some apps refuse to work over a VPN. List them in `apps-direct` and their traffic goes around the tunnel with your real IP, whatever the subscription's rules say. Names are process names, case doesn't matter, and `*` works as a wildcard: `discord, steam*`. This needs the `rules` mode and `hide-processes` off, because the core has to know which app opened a connection.
 
 **Subscription refresh.** With `update-interval` set (5 to 10080 minutes), FLClashX CLI refreshes the active subscription in the background while the VPN is up and hands it to the core on the fly: connections aren't dropped and your selected servers stay selected. `flc status` shows when the next refresh is due, and a log of refreshes goes to `~/.local/state/flc/watch.log`.
 

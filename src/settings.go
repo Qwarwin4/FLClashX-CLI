@@ -28,9 +28,7 @@ log-level: info
 flags: auto
 # запускать VPN при входе в систему
 autostart: false
-# приложения, которые всегда идут через VPN, через запятую: discord, telegram-desktop
-apps-vpn: ""
-# приложения, которые всегда идут мимо VPN
+# приложения, которые идут мимо VPN-туннеля, через запятую: discord, steam
 apps-direct: ""
 
 # обновлять активную подписку каждые N минут, пока VPN запущен. 0 — не обновлять
@@ -70,9 +68,7 @@ log-level: info
 flags: auto
 # start the VPN when you log in
 autostart: false
-# apps that always go through the VPN, comma separated: discord, telegram-desktop
-apps-vpn: ""
-# apps that always bypass the VPN
+# apps that go around the VPN tunnel, comma separated: discord, steam
 apps-direct: ""
 
 # refresh the active subscription every N minutes while the VPN runs. 0 = never
@@ -115,7 +111,6 @@ type settings struct {
 	HideProc   bool   `yaml:"hide-processes"`
 	WipeLog    bool   `yaml:"wipe-log"`
 	Autostart  bool   `yaml:"autostart"`
-	AppsVPN    string `yaml:"apps-vpn"`
 	AppsDirect string `yaml:"apps-direct"`
 }
 
@@ -172,8 +167,6 @@ func (s settings) bad() string {
 		return "update-interval"
 	case !slices.Contains(hwidModes, s.HWID):
 		return "hide-hwid"
-	case appsBad(s.AppsVPN) != "":
-		return "apps-vpn"
 	case appsBad(s.AppsDirect) != "":
 		return "apps-direct"
 	}
@@ -208,6 +201,9 @@ var oldLines = []string{
 	"# слать x-hwid (sha256 от machine-id) — нужно панелям с лимитом устройств",
 	"# send x-hwid (sha256 of machine-id), needed by panels that limit devices",
 	"# Настройки flc. Применяются при следующем flc start.", "# flc settings. Applied on the next flc start.",
+	"# приложения, которые всегда идут через VPN, через запятую: discord, telegram-desktop",
+	"# apps that always go through the VPN, comma separated: discord, telegram-desktop",
+	"# приложения, которые всегда идут мимо VPN", "# apps that always bypass the VPN",
 }
 
 func saveSettings(s settings) error {
@@ -231,11 +227,12 @@ func saveSettings(s settings) error {
 		{"keep-rules", s.KeepRules}, {"check-updates", s.AutoCheck}, {"hide-hwid", s.HWID},
 		{"hide-user-agent", s.HideUA}, {"hide-device", s.HideDevice}, {"hide-os", s.HideOS},
 		{"hide-processes", s.HideProc}, {"wipe-log", s.WipeLog}, {"autostart", s.Autostart},
-		{"apps-vpn", s.AppsVPN}, {"apps-direct", s.AppsDirect},
+		{"apps-direct", s.AppsDirect},
 	}
 	var lines []string
 	for _, l := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {
-		if !strings.HasPrefix(l, "user-agent:") && !strings.HasPrefix(l, "send-hwid:") && !slices.Contains(oldLines, l) {
+		if !strings.HasPrefix(l, "user-agent:") && !strings.HasPrefix(l, "send-hwid:") &&
+			!strings.HasPrefix(l, "apps-vpn:") && !slices.Contains(oldLines, l) {
 			lines = append(lines, l)
 		}
 	}

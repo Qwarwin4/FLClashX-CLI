@@ -238,7 +238,7 @@ func startCore(p *profile, s settings) error {
 
 	a := newAPI()
 	restoreSel(a, p, s)
-	if s.HideProc && s.AppsVPN+s.AppsDirect != "" {
+	if s.HideProc && s.AppsDirect != "" {
 		fmt.Fprintln(os.Stderr, T("внимание: правила для приложений не работают, пока включено «Скрывать приложения»",
 			"warning: app rules don't work while \"Hide apps\" is on"))
 	}
