@@ -53,6 +53,7 @@ func buildConfig(p *profile, s settings) ([]byte, error) {
 	if err := plainHTTP(p, m); err != nil {
 		return nil, err
 	}
+	addAppRules(m, s)
 	if ntp, ok := m["ntp"].(map[string]any); ok {
 		ntp["write-to-system"] = false
 	}
@@ -237,6 +238,10 @@ func startCore(p *profile, s settings) error {
 
 	a := newAPI()
 	restoreSel(a, p, s)
+	if s.HideProc && s.AppsVPN+s.AppsDirect != "" {
+		fmt.Fprintln(os.Stderr, T("внимание: правила для приложений не работают, пока включено «Скрывать приложения»",
+			"warning: app rules don't work while \"Hide apps\" is on"))
+	}
 	if s.Tun {
 		if c, err := a.configs(); err == nil && !c.Tun.Enable {
 			fmt.Fprintln(os.Stderr, T("внимание: TUN не поднялся, работает только прокси на 127.0.0.1. Причина в flc debug log",

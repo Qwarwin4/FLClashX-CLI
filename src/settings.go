@@ -26,6 +26,12 @@ mode: rule
 log-level: info
 # флаги стран в именах серверов: auto | emoji | text (text — код страны буквами)
 flags: auto
+# запускать VPN при входе в систему
+autostart: false
+# приложения, которые всегда идут через VPN, через запятую: discord, telegram-desktop
+apps-vpn: ""
+# приложения, которые всегда идут мимо VPN
+apps-direct: ""
 
 # обновлять активную подписку каждые N минут, пока VPN запущен. 0 — не обновлять
 update-interval: 0
@@ -62,6 +68,12 @@ mode: rule
 log-level: info
 # country flags in server names: auto | emoji | text (text = country code in letters)
 flags: auto
+# start the VPN when you log in
+autostart: false
+# apps that always go through the VPN, comma separated: discord, telegram-desktop
+apps-vpn: ""
+# apps that always bypass the VPN
+apps-direct: ""
 
 # refresh the active subscription every N minutes while the VPN runs. 0 = never
 update-interval: 0
@@ -102,6 +114,9 @@ type settings struct {
 	HideOS     bool   `yaml:"hide-os"`
 	HideProc   bool   `yaml:"hide-processes"`
 	WipeLog    bool   `yaml:"wipe-log"`
+	Autostart  bool   `yaml:"autostart"`
+	AppsVPN    string `yaml:"apps-vpn"`
+	AppsDirect string `yaml:"apps-direct"`
 }
 
 func loadSettings() (settings, error) {
@@ -157,6 +172,10 @@ func (s settings) bad() string {
 		return "update-interval"
 	case !slices.Contains(hwidModes, s.HWID):
 		return "hide-hwid"
+	case appsBad(s.AppsVPN) != "":
+		return "apps-vpn"
+	case appsBad(s.AppsDirect) != "":
+		return "apps-direct"
 	}
 	return ""
 }
@@ -211,7 +230,8 @@ func saveSettings(s settings) error {
 		{"log-level", s.LogLevel}, {"flags", s.Flags}, {"update-interval", s.Interval},
 		{"keep-rules", s.KeepRules}, {"check-updates", s.AutoCheck}, {"hide-hwid", s.HWID},
 		{"hide-user-agent", s.HideUA}, {"hide-device", s.HideDevice}, {"hide-os", s.HideOS},
-		{"hide-processes", s.HideProc}, {"wipe-log", s.WipeLog},
+		{"hide-processes", s.HideProc}, {"wipe-log", s.WipeLog}, {"autostart", s.Autostart},
+		{"apps-vpn", s.AppsVPN}, {"apps-direct", s.AppsDirect},
 	}
 	var lines []string
 	for _, l := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {

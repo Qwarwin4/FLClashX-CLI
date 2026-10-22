@@ -98,6 +98,7 @@ func cmdDelete(args []string) error {
 	if _, err := stopCore(); err != nil {
 		return err
 	}
+	_ = setAutostart(false)
 	for _, d := range []string{dir.run, dir.cfg, dir.data, dir.state} {
 		if err := os.RemoveAll(d); err != nil {
 			return err

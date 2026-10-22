@@ -56,6 +56,16 @@ func hwidState(s settings) string {
 	return T("нет machine-id", "no machine-id")
 }
 
+func autoInfo() string {
+	switch autostartState() {
+	case "systemd":
+		return T("да, служба systemd ", "yes, systemd service ") + unitName
+	case "xdg":
+		return T("да, XDG autostart", "yes, XDG autostart")
+	}
+	return T("нет", "no")
+}
+
 func about() string {
 	s, _ := readSettings()
 
@@ -100,6 +110,7 @@ func about() string {
 		{T("система", "system"), sys},
 		{T("устройство", "device"), dev},
 		{T("подписка", "subscription"), upd},
+		{T("автозапуск", "on login"), autoInfo()},
 		{T("флаги", "flags"), fl},
 		{T("стеки TUN", "TUN stacks"), st},
 		{T("настройки", "settings"), tilde(settingsPath())},

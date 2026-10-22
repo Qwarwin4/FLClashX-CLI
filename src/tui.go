@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/metacubex/mihomo/constant/features"
@@ -20,6 +21,7 @@ const (
 	kToggle = iota
 	kChoice
 	kNumber
+	kText
 )
 
 type form struct {
@@ -38,6 +40,7 @@ type field struct {
 	lo, hi int
 	bad    func() string
 	ok     func(int) bool
+	check  func(string) string
 }
 
 type tab struct {
@@ -73,6 +76,16 @@ func tabs() []tab {
 			get: func(f *form) string { return f.lang },
 			set: func(f *form, v string) { f.lang, lang = v, v },
 		},
+		tg(func() string { return T("Автозапуск", "Start on login") },
+			func() string {
+				if userSystemd() {
+					return T("Поднимать VPN при входе в систему. Ставится как пользовательская служба systemd, root не нужен.",
+						"Bring the VPN up when you log in. It's set up as a systemd user service, no root needed.")
+				}
+				return T("Поднимать VPN при входе в систему через XDG autostart. Оконные менеджеры без него его не прочтут, тогда добавь flc start в свой конфиг.",
+					"Bring the VPN up when you log in, via XDG autostart. Window managers without it won't read it: add flc start to your config then.")
+			},
+			func(s *settings) *bool { return &s.Autostart }),
 		tg(func() string { return T("Весь трафик (TUN)", "System-wide (TUN)") },
 			func() string {
 				return T("Включено: через VPN идёт весь трафик системы. Выключено: работает только прокси на 127.0.0.1.",
@@ -125,6 +138,30 @@ func tabs() []tab {
 			show: modeName,
 			get:  func(f *form) string { return f.s.Mode },
 			set:  func(f *form, v string) { f.s.Mode = v },
+		},
+		{
+			label: func() string { return T("Приложения через VPN", "Apps through VPN") },
+			help: func(*form) string {
+				return T("Эти программы всегда идут через VPN, что бы ни говорили правила. Имена через запятую: discord, telegram-desktop. Можно со звёздочкой: discord*. Нужен TUN и режим rules.",
+					"These apps always go through the VPN, whatever the rules say. Names, comma separated: discord, telegram-desktop. Wildcards work: discord*. Needs TUN and rules mode.")
+			},
+			kind:  kText,
+			check: appsBad,
+			show:  appsShow,
+			get:   func(f *form) string { return f.s.AppsVPN },
+			set:   func(f *form, v string) { f.s.AppsVPN = tidyApps(v) },
+		},
+		{
+			label: func() string { return T("Приложения мимо VPN", "Apps bypassing VPN") },
+			help: func(*form) string {
+				return T("Эти программы всегда идут напрямую, мимо VPN. Например, игры или торрент-клиент. Имена через запятую, нужен TUN и режим rules.",
+					"These apps always go direct, around the VPN, like games or a torrent client. Names, comma separated. Needs TUN and rules mode.")
+			},
+			kind:  kText,
+			check: appsBad,
+			show:  appsShow,
+			get:   func(f *form) string { return f.s.AppsDirect },
+			set:   func(f *form, v string) { f.s.AppsDirect = tidyApps(v) },
 		},
 		{
 			label: func() string { return T("Подробность лога", "Log level") },
@@ -196,14 +233,14 @@ func tabs() []tab {
 		},
 		tg(func() string { return T("Сохранять свои правила", "Keep my rules") },
 			func() string {
-				return T("При обновлении подписки оставлять правила маршрутизации, которые ты правил в flc config. Если в новой подписке пропала группа, на которую они ссылаются, возьмутся правила подписки.",
-					"When a subscription is refreshed, keep the routing rules you edited in flc config. If a group they point to is gone from the new subscription, its own rules are used.")
+				return T("При обновлении подписки оставлять правила, которые ты правил в flc config. Если пропала группа, на которую они ссылаются, возьмутся правила подписки.",
+					"Keep the rules you edited in flc config when a subscription is refreshed. If a group they point to is gone, the subscription's rules are used.")
 			},
 			func(s *settings) *bool { return &s.KeepRules }),
 		tg(func() string { return T("Проверять новые версии", "Check for new versions") },
 			func() string {
-				return T("Раз в сутки, пока работает VPN, спрашивать GitHub о новой версии FLClashX CLI. Сам ничего не ставит: покажет уведомление и подсказку в flc status.",
-					"Once a day, while the VPN runs, ask GitHub about a new FLClashX CLI version. It never installs anything by itself: you get a notification and a hint in flc status.")
+				return T("Раз в сутки, пока работает VPN, спрашивать GitHub о новой версии. Сам ничего не ставит: покажет уведомление и подсказку в flc status.",
+					"Once a day, while the VPN runs, ask GitHub about a new version. Nothing is installed by itself: you get a notification and a hint in flc status.")
 			},
 			func(s *settings) *bool { return &s.AutoCheck }),
 	}
@@ -424,7 +461,7 @@ func (u *tui) activate(d int) {
 		}
 	case kChoice:
 		u.cycle(it, d)
-	case kNumber:
+	case kNumber, kText:
 		u.edit = true
 		u.buf = []rune(it.get(&u.f))
 	}
@@ -433,6 +470,16 @@ func (u *tui) activate(d int) {
 func (u *tui) commit() bool {
 	it := u.items[u.cur]
 	v := strings.TrimSpace(string(u.buf))
+	if it.kind == kText {
+		if m := it.check(v); m != "" {
+			u.msg = m
+			return false
+		}
+		it.set(&u.f, v)
+		u.edit = false
+		u.msg = ""
+		return true
+	}
 	n, err := strconv.Atoi(v)
 	if err != nil || n < it.lo || n > it.hi || (it.ok != nil && !it.ok(n)) {
 		u.msg = it.bad()
@@ -487,7 +534,11 @@ func (u *tui) handle(e ev) {
 	if u.edit {
 		switch e.key {
 		case "rune":
-			if e.r < '0' || e.r > '9' || len(u.buf) >= 5 {
+			if u.items[u.cur].kind == kText {
+				if !unicode.IsPrint(e.r) || len(u.buf) >= 400 {
+					return
+				}
+			} else if e.r < '0' || e.r > '9' || len(u.buf) >= 5 {
 				return
 			}
 			u.buf = append(u.buf, e.r)
@@ -679,7 +730,7 @@ func (u *tui) value(it field, editing bool) string {
 	return v
 }
 
-const helpLines = 4
+const helpLines = 3
 
 func (u *tui) draw() string {
 	var b strings.Builder
@@ -963,12 +1014,22 @@ func cmdSettings(args []string) error {
 	}
 	fmt.Println(T("настройки сохранены", "settings saved"))
 
+	if now.s.Autostart != was.s.Autostart {
+		if err := setAutostart(now.s.Autostart); err != nil {
+			fmt.Fprintf(os.Stderr, T("автозапуск: %v\n", "autostart: %v\n"), err)
+		} else if now.s.Autostart {
+			fmt.Printf(T("автозапуск включён (%s)\n", "start on login is on (%s)\n"), autostartState())
+		} else {
+			fmt.Println(T("автозапуск выключен", "start on login is off"))
+		}
+	}
 	if corePid() > 0 && (now.s.Interval > 0 || now.s.AutoCheck) {
 		spawnWatcher()
 	}
 	core := now.s.Tun != was.s.Tun || now.s.Stack != was.s.Stack ||
 		now.s.MixedPort != was.s.MixedPort || now.s.LogLevel != was.s.LogLevel ||
-		now.s.HideProc != was.s.HideProc
+		now.s.HideProc != was.s.HideProc || now.s.AppsVPN != was.s.AppsVPN ||
+		now.s.AppsDirect != was.s.AppsDirect
 	if corePid() == 0 || (!core && now.s.Mode == was.s.Mode) {
 		return nil
 	}

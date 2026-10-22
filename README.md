@@ -19,8 +19,8 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.3.0-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.3.0-linux-amd64
+tar xzf FLClashX-CLI-v0.3.1-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.3.1-linux-amd64
 ./install.sh
 ```
 
@@ -63,7 +63,7 @@ flc switch-server 3
 flc stop
 ```
 
-The VPN keeps running after you close the terminal. To bring it up on login, add `flc start` to your session's autostart.
+The VPN keeps running after you close the terminal. To bring it up on login, turn on **Start on login** in `flc settings`.
 
 If you want a single command to toggle it, for a hotkey for example:
 
@@ -131,6 +131,9 @@ mixed-port: 7890
 mode: rule              # rule | global | direct, same as flc change-mode
 log-level: info         # silent | error | warning | info | debug
 flags: auto             # country flags in server names: auto | emoji | text
+autostart: false        # start the VPN when you log in
+apps-vpn: ""            # apps that always go through the VPN: discord, telegram-desktop
+apps-direct: ""         # apps that always go around it
 
 update-interval: 0      # refresh the active subscription every N minutes while the VPN runs; 0 = never
 keep-rules: false       # keep your own routing rules when a subscription is refreshed
@@ -143,6 +146,10 @@ hide-os: false
 hide-processes: false
 wipe-log: false
 ```
+
+**Start on login.** With systemd, FLClashX CLI sets itself up as a user service, `~/.config/systemd/user/flclashx-cli.service`, so no root is needed. Without systemd it drops a file into `~/.config/autostart/`. That works in desktop environments, but bare window managers usually ignore it, so add `flc start` to your WM's config instead.
+
+**Apps.** `apps-vpn` sends the listed apps through the VPN whatever the subscription's rules say, `apps-direct` sends them straight past it. Names are the process names, case doesn't matter, and `*` works as a wildcard: `discord, vesktop*`. This needs TUN, the `rules` mode, and `hide-processes` off, because the core has to know which app opened a connection.
 
 **Subscription refresh.** With `update-interval` set (5 to 10080 minutes), FLClashX CLI refreshes the active subscription in the background while the VPN is up and hands it to the core on the fly: connections aren't dropped and your selected servers stay selected. `flc status` shows when the next refresh is due, and a log of refreshes goes to `~/.local/state/flc/watch.log`.
 
@@ -242,9 +249,9 @@ The update only talks to GitHub over https, refuses redirects to anywhere else, 
 Bump `version` in `src/main.go`, commit, then tag that commit and publish a release for the tag:
 
 ```sh
-git tag v0.3.0
-git push origin v0.3.0
-gh release create v0.3.0 --title v0.3.0 --notes-file notes.md
+git tag v0.3.1
+git push origin v0.3.1
+gh release create v0.3.1 --title v0.3.1 --notes-file notes.md
 ```
 
 No files need to be attached: `flc check-updates` builds the tag from source.
