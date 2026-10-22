@@ -91,6 +91,7 @@ pgrep -x flc-core >/dev/null && flc stop || flc start
 | `flc update-profile [profile]` | re-download a subscription |
 | `flc change-name <name>` | rename the active profile |
 | `flc config [--profile <name>]` | open a profile's YAML in nano |
+| `flc config --core` | your own mihomo settings on top of every profile, see Settings |
 | `flc change-mode <rules\|global\|direct>` | routing mode |
 | `flc delete-profile <profile>` | delete a profile |
 | `flc delete-profile --all` | delete every profile; stop the VPN first |
@@ -147,6 +148,8 @@ wipe-log: false
 ```
 
 **Start on login.** With systemd, FLClashX CLI sets itself up as a user service, `~/.config/systemd/user/flclashx-cli.service`, so no root is needed. Without systemd it drops a file into `~/.config/autostart/`. That works in desktop environments, but bare window managers usually ignore it, so add `flc start` to your WM's config instead.
+
+**Core config.** `flc config --core`, or **Core config** in `flc settings`, opens `~/.config/flc/core.yaml`: your own mihomo settings that go on top of every profile, like `ipv6`, `dns`, `sniffer` or TUN options such as `mtu` and `route-exclude-address`. Nested sections are merged into the profile's. Servers, groups, rules and providers are ignored there, those belong in `flc config`, and anything that would open ports or touch the system is dropped, same as in profiles. If the VPN is up, the change applies on the fly.
 
 **Bypass VPN.** Some apps refuse to work over a VPN. List them in `apps-direct` and their traffic goes around the tunnel with your real IP, whatever the subscription's rules say. Names are process names, case doesn't matter, and `*` works as a wildcard: `discord, steam*`. This needs the `rules` mode and `hide-processes` off, because the core has to know which app opened a connection.
 

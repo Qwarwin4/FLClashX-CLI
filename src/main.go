@@ -34,6 +34,7 @@ const usageRu = `FLClashX CLI — консольный VPN-клиент на я�
   update-profile [профиль]     перекачать подписку
   change-name <имя>            переименовать активный профиль
   config [--profile <имя>]     открыть yaml профиля в nano
+      --core                   свои настройки ядра поверх всех профилей
   delete-profile <профиль>     удалить профиль (-y без вопроса)
       --all                    удалить все профили
   change-mode <режим>          rules | global | direct
@@ -68,6 +69,7 @@ Usage: flc <command> [args]
   update-profile [profile]     re-download a subscription
   change-name <name>           rename the active profile
   config [--profile <name>]    open a profile's yaml in nano
+      --core                   your own core settings on top of every profile
   delete-profile <profile>     delete a profile (-y to skip the prompt)
       --all                    delete every profile
   change-mode <mode>           rules | global | direct

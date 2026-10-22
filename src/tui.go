@@ -22,6 +22,7 @@ const (
 	kChoice
 	kNumber
 	kText
+	kAction
 )
 
 type form struct {
@@ -41,6 +42,7 @@ type field struct {
 	bad    func() string
 	ok     func(int) bool
 	check  func(string) string
+	run    func() string
 }
 
 type tab struct {
@@ -150,6 +152,32 @@ func tabs() []tab {
 			show:  appsShow,
 			get:   func(f *form) string { return f.s.AppsDirect },
 			set:   func(f *form, v string) { f.s.AppsDirect = tidyApps(v) },
+		},
+		{
+			label: func() string { return T("Конфигурация ядра", "Core config") },
+			help: func(*form) string {
+				return T("Свои настройки mihomo поверх любого профиля: DNS, IPv6, sniffer, параметры TUN. Enter откроет файл в редакторе. То же самое: flc config --core.",
+					"Your own mihomo settings on top of every profile: DNS, IPv6, sniffer, TUN options. Enter opens the file in an editor. Same as flc config --core.")
+			},
+			kind: kAction,
+			get: func(*form) string {
+				switch n := coreCount(); {
+				case n < 0:
+					return T("ошибка в файле", "broken file")
+				case n == 0:
+					return T("как в профиле ›", "as in the profile ›")
+				default:
+					return fmt.Sprintf(T("своих ключей: %d ›", "own keys: %d ›"), n)
+				}
+			},
+			set: func(*form, string) {},
+			run: func() string {
+				msg, err := editCore()
+				if err != nil {
+					return err.Error()
+				}
+				return msg
+			},
 		},
 		{
 			label: func() string { return T("Подробность лога", "Log level") },
@@ -401,6 +429,8 @@ type tui struct {
 	quitX [2]int
 	done  bool
 	saved bool
+	run   func() string
+	note  string
 }
 
 func (u *tui) dirty() bool { return u.f != u.orig }
@@ -452,6 +482,8 @@ func (u *tui) activate(d int) {
 	case kNumber, kText:
 		u.edit = true
 		u.buf = []rune(it.get(&u.f))
+	case kAction:
+		u.run = it.run
 	}
 }
 
@@ -729,7 +761,7 @@ func (u *tui) draw() string {
 	for _, t := range u.tabs {
 		most = max(most, len(t.items))
 	}
-	need := most + 11 + helpLines
+	need := most + 10 + helpLines
 	W := min(72, u.w)
 	if u.w < 48 || u.h < need {
 		b.WriteString(T("Окно слишком маленькое. Растяни его или нажми q.",
@@ -859,6 +891,8 @@ func (u *tui) draw() string {
 			"Unsaved changes: s save · y leave without saving · n go back"), W) + cReset)
 	case u.msg != "":
 		b.WriteString(cRed + fit(" "+u.msg, W) + cReset)
+	case u.note != "":
+		b.WriteString(cCyan + fit(" "+u.note, W) + cReset)
 	}
 	return b.String()
 }
@@ -943,11 +977,24 @@ func runTUI(f form) (form, bool, error) {
 		if err != nil || k == 0 {
 			continue
 		}
+		u.note = ""
 		for _, e := range readEvents(buf[:k]) {
 			u.handle(e)
-			if u.done {
+			if u.done || u.run != nil {
 				break
 			}
+		}
+		if u.run != nil {
+			run := u.run
+			u.run = nil
+			os.Stdout.WriteString(leave)
+			restore()
+			u.note = run()
+			if r, err := rawMode(in); err == nil {
+				restore = r
+			}
+			os.Stdout.WriteString(enter)
+			u.w, u.h = termSize()
 		}
 		os.Stdout.WriteString(u.draw())
 	}

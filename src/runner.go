@@ -38,6 +38,13 @@ func buildConfig(p *profile, s settings) ([]byte, error) {
 	if m == nil {
 		return nil, fmt.Errorf(T("профиль «%s» пустой", "profile %q is empty"), p.Name)
 	}
+	ov, err := coreOverrides()
+	if err != nil {
+		return nil, err
+	}
+	utun, _ := ov["tun"].(map[string]any)
+	delete(ov, "tun")
+	merge(m, ov)
 
 	for _, k := range stripKeys {
 		delete(m, k)
@@ -69,6 +76,11 @@ func buildConfig(p *profile, s settings) ([]byte, error) {
 			"auto-route":            true,
 			"auto-detect-interface": true,
 			"dns-hijack":            []string{"any:53"},
+		}
+		for k, v := range utun {
+			if k != "enable" && k != "stack" {
+				m["tun"].(map[string]any)[k] = v
+			}
 		}
 		if dns == nil {
 			dns = map[string]any{

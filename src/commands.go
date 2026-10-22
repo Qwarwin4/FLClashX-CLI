@@ -600,11 +600,67 @@ func editor() []string {
 	return []string{"vi"}
 }
 
+func editYAML(orig []byte, tmpDir string, needMap bool) ([]byte, error) {
+	tmp, err := os.CreateTemp(tmpDir, ".edit-*.yaml")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmp.Name())
+	_, err = tmp.Write(orig)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	ed := editor()
+	for {
+		c := exec.Command(ed[0], append(ed[1:], tmp.Name())...)
+		c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+		if err := c.Run(); err != nil {
+			return nil, fmt.Errorf(T("редактор: %w", "editor: %w"), err)
+		}
+		b, err := os.ReadFile(tmp.Name())
+		if err != nil {
+			return nil, err
+		}
+		if bytes.Equal(b, orig) {
+			fmt.Println(T("изменений нет", "no changes"))
+			return nil, nil
+		}
+		var m map[string]any
+		err = yaml.Unmarshal(b, &m)
+		if err == nil && m == nil && needMap {
+			err = errors.New(T("файл пустой", "file is empty"))
+		}
+		if err == nil {
+			return b, nil
+		}
+		fmt.Fprintf(os.Stderr, T("в конфиге ошибка: %v\n", "config has an error: %v\n"), err)
+		if !confirm(T("открыть снова?", "open it again?"), true) {
+			fmt.Println(T("изменения отброшены", "changes discarded"))
+			return nil, nil
+		}
+	}
+}
+
 func cmdConfig(args []string) error {
 	fs := newFlags("config")
 	which := fs.String("profile", "", "")
+	core := fs.Bool("core", false, "")
 	pos, err := parse(fs, args)
 	if err != nil {
+		return err
+	}
+	if *core {
+		if *which != "" || len(pos) > 0 {
+			return errors.New(T("либо --core, либо --profile", "use either --core or --profile"))
+		}
+		msg, err := editCore()
+		if msg != "" {
+			fmt.Println(msg)
+		}
 		return err
 	}
 	if len(pos) > 0 {
@@ -628,47 +684,9 @@ func cmdConfig(args []string) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(profDir(), ".edit-*.yaml")
-	if err != nil {
+	b, err := editYAML(orig, profDir(), true)
+	if err != nil || b == nil {
 		return err
-	}
-	defer os.Remove(tmp.Name())
-	_, err = tmp.Write(orig)
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-
-	ed := editor()
-	var b []byte
-	for {
-		c := exec.Command(ed[0], append(ed[1:], tmp.Name())...)
-		c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
-		if err := c.Run(); err != nil {
-			return fmt.Errorf(T("редактор: %w", "editor: %w"), err)
-		}
-		if b, err = os.ReadFile(tmp.Name()); err != nil {
-			return err
-		}
-		if bytes.Equal(b, orig) {
-			fmt.Println(T("изменений нет", "no changes"))
-			return nil
-		}
-		var m map[string]any
-		err = yaml.Unmarshal(b, &m)
-		if err == nil && m == nil {
-			err = errors.New(T("файл пустой", "file is empty"))
-		}
-		if err == nil {
-			break
-		}
-		fmt.Fprintf(os.Stderr, T("в конфиге ошибка: %v\n", "config has an error: %v\n"), err)
-		if !confirm(T("открыть снова?", "open it again?"), true) {
-			fmt.Println(T("изменения отброшены", "changes discarded"))
-			return nil
-		}
 	}
 
 	unlock, err := lock()
@@ -688,12 +706,8 @@ func cmdConfig(args []string) error {
 	}
 	fmt.Println(T("сохранено", "saved"))
 
-	if st.Current == p.ID && corePid() > 0 && confirm(T("VPN запущен с этим профилем, перезапустить?", "VPN is running with this profile, restart it?"), true) {
-		s, err := loadSettings()
-		if err != nil {
-			return err
-		}
-		return restart(still, s)
+	if st.Current == p.ID && corePid() > 0 {
+		return applyLive(still)
 	}
 	return nil
 }
