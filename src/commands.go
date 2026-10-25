@@ -535,11 +535,16 @@ func cmdUpdateProfile(args []string) error {
 		return err
 	}
 	defer unlock()
-	if st, p, err = saveProfile(p.ID, cfg, sb.info); err != nil {
+	st, p, changed, err := saveProfile(p.ID, cfg, sb.info)
+	if err != nil {
 		return err
 	}
 	if note != "" {
 		fmt.Println(note)
+	}
+	if !changed {
+		fmt.Printf(T("профиль «%s»: в подписке ничего не поменялось\n", "profile %q: nothing changed in the subscription\n"), show(p.Name))
+		return nil
 	}
 	fmt.Printf(T("профиль «%s» обновлён\n", "profile %q updated\n"), show(p.Name))
 

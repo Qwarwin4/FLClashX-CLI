@@ -151,9 +151,12 @@ func subTick(s settings, failed map[string]time.Time, logf func(string, ...any))
 		return err
 	}
 	defer unlock()
-	st, p, err = saveProfile(p.ID, cfg, sb.info)
+	st, p, changed, err := saveProfile(p.ID, cfg, sb.info)
 	if err != nil {
 		return err
+	}
+	if !changed {
+		return nil
 	}
 	if note != "" {
 		logf("%s", note)

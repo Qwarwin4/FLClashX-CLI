@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -31,20 +32,24 @@ func fetchProfile(p *profile, s settings, allowHTTP bool) ([]byte, *sub, string,
 	return cfg, sb, note, nil
 }
 
-func saveProfile(id string, cfg []byte, info *subInfo) (*store, *profile, error) {
+func saveProfile(id string, cfg []byte, info *subInfo) (*store, *profile, bool, error) {
 	st, err := loadStore()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	p := st.byID(id)
 	if p == nil {
-		return nil, nil, errors.New(T("пока качалась подписка, профиль удалили", "the profile was deleted while the subscription was downloading"))
+		return nil, nil, false, errors.New(T("пока качалась подписка, профиль удалили", "the profile was deleted while the subscription was downloading"))
 	}
-	if err := writeFile(p.path(), cfg); err != nil {
-		return nil, nil, err
+	old, _ := os.ReadFile(p.path())
+	changed := !bytes.Equal(old, cfg)
+	if changed {
+		if err := writeFile(p.path(), cfg); err != nil {
+			return nil, nil, false, err
+		}
 	}
 	p.Updated, p.Info = time.Now(), info
-	return st, p, st.save()
+	return st, p, changed, st.save()
 }
 
 func keepRules(old, fresh []byte) ([]byte, string) {

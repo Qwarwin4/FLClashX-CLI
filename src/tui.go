@@ -153,6 +153,12 @@ func tabs() []tab {
 			get:   func(f *form) string { return f.s.AppsDirect },
 			set:   func(f *form, v string) { f.s.AppsDirect = tidyApps(v) },
 		},
+		tg(func() string { return T("Обход блокировок", "Anti-blocking") },
+			func() string {
+				return T("Чинит то, что ломают блокировки: режет QUIC, чтобы YouTube шёл по TCP, всегда пускает YouTube через VPN и не даёт IPv6 утекать мимо туннеля.",
+					"Works around what blocking breaks: drops QUIC so YouTube uses TCP, always sends YouTube through the VPN and keeps IPv6 from leaking past the tunnel.")
+			},
+			func(s *settings) *bool { return &s.AntiBlock }),
 		{
 			label: func() string { return T("Конфигурация ядра", "Core config") },
 			help: func(*form) string {
@@ -761,7 +767,7 @@ func (u *tui) draw() string {
 	for _, t := range u.tabs {
 		most = max(most, len(t.items))
 	}
-	need := most + 10 + helpLines
+	need := most + 9 + helpLines
 	W := min(72, u.w)
 	if u.w < 48 || u.h < need {
 		b.WriteString(T("Окно слишком маленькое. Растяни его или нажми q.",
@@ -834,8 +840,7 @@ func (u *tui) draw() string {
 		}
 	}
 
-	y := u.rowY + most
-	row(y, strings.Repeat(" ", iw))
+	y := u.rowY + most - 1
 	sep(y + 1)
 
 	help := ""
@@ -1063,7 +1068,8 @@ func cmdSettings(args []string) error {
 	}
 	core := now.s.Tun != was.s.Tun || now.s.Stack != was.s.Stack ||
 		now.s.MixedPort != was.s.MixedPort || now.s.LogLevel != was.s.LogLevel ||
-		now.s.HideProc != was.s.HideProc || now.s.AppsDirect != was.s.AppsDirect
+		now.s.HideProc != was.s.HideProc || now.s.AppsDirect != was.s.AppsDirect ||
+		now.s.AntiBlock != was.s.AntiBlock
 	if corePid() == 0 || (!core && now.s.Mode == was.s.Mode) {
 		return nil
 	}

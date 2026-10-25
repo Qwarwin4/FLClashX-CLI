@@ -30,6 +30,8 @@ flags: auto
 autostart: false
 # приложения, которые идут мимо VPN-туннеля, через запятую: discord, steam
 apps-direct: ""
+# чинить то, что ломают блокировки: QUIC, утечки IPv6, YouTube мимо VPN
+anti-block: true
 
 # обновлять активную подписку каждые N минут, пока VPN запущен. 0 — не обновлять
 update-interval: 0
@@ -70,6 +72,8 @@ flags: auto
 autostart: false
 # apps that go around the VPN tunnel, comma separated: discord, steam
 apps-direct: ""
+# work around what blocking breaks: QUIC, IPv6 leaks, YouTube going around the VPN
+anti-block: true
 
 # refresh the active subscription every N minutes while the VPN runs. 0 = never
 update-interval: 0
@@ -112,6 +116,7 @@ type settings struct {
 	WipeLog    bool   `yaml:"wipe-log"`
 	Autostart  bool   `yaml:"autostart"`
 	AppsDirect string `yaml:"apps-direct"`
+	AntiBlock  bool   `yaml:"anti-block"`
 }
 
 func loadSettings() (settings, error) {
@@ -227,7 +232,7 @@ func saveSettings(s settings) error {
 		{"keep-rules", s.KeepRules}, {"check-updates", s.AutoCheck}, {"hide-hwid", s.HWID},
 		{"hide-user-agent", s.HideUA}, {"hide-device", s.HideDevice}, {"hide-os", s.HideOS},
 		{"hide-processes", s.HideProc}, {"wipe-log", s.WipeLog}, {"autostart", s.Autostart},
-		{"apps-direct", s.AppsDirect},
+		{"apps-direct", s.AppsDirect}, {"anti-block", s.AntiBlock},
 	}
 	var lines []string
 	for _, l := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {

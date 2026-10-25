@@ -60,6 +60,7 @@ func buildConfig(p *profile, s settings) ([]byte, error) {
 	if err := plainHTTP(p, m); err != nil {
 		return nil, err
 	}
+	antiBlock(m, s)
 	addAppRules(m, s)
 	if ntp, ok := m["ntp"].(map[string]any); ok {
 		ntp["write-to-system"] = false

@@ -19,8 +19,8 @@ There are two ways, and they don't depend on each other. Pick whichever you like
 Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
 
 ```sh
-tar xzf FLClashX-CLI-v0.3.1-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.3.1-linux-amd64
+tar xzf FLClashX-CLI-v0.3.2-linux-amd64.tar.gz
+cd FLClashX-CLI-v0.3.2-linux-amd64
 ./install.sh
 ```
 
@@ -134,6 +134,7 @@ log-level: info         # silent | error | warning | info | debug
 flags: auto             # country flags in server names: auto | emoji | text
 autostart: false        # start the VPN when you log in
 apps-direct: ""         # apps that go around the VPN tunnel: discord, steam
+anti-block: true        # QUIC, IPv6 leak and YouTube fixes, see below
 
 update-interval: 0      # refresh the active subscription every N minutes while the VPN runs; 0 = never
 keep-rules: false       # keep your own routing rules when a subscription is refreshed
@@ -148,6 +149,13 @@ wipe-log: false
 ```
 
 **Start on login.** With systemd, FLClashX CLI sets itself up as a user service, `~/.config/systemd/user/flclashx-cli.service`, so no root is needed. Without systemd it drops a file into `~/.config/autostart/`. That works in desktop environments, but bare window managers usually ignore it, so add `flc start` to your WM's config instead.
+
+**Anti-blocking.** On by default. Blocking in some countries breaks things in ways that look like a bad VPN: YouTube stalls or drops the connection. With `anti-block` FLClashX CLI:
+
+- drops QUIC (UDP 443), so browsers and YouTube fall back to TCP, which goes through the tunnel reliably;
+- always sends YouTube domains (`youtube.com`, `googlevideo.com`, `ytimg.com` and friends) through the VPN, even if the subscription's rules would send them direct;
+- keeps IPv6 from leaking past the tunnel when the profile turns IPv6 off: v6 traffic is caught by TUN and refused, so apps fall back to IPv4 instead of going around the VPN;
+- turns on traffic sniffing if the profile doesn't, so domain rules work for apps that resolve DNS on their own.
 
 **Core config.** `flc config --core`, or **Core config** in `flc settings`, opens `~/.config/flc/core.yaml`: your own mihomo settings that go on top of every profile, like `ipv6`, `dns`, `sniffer` or TUN options such as `mtu` and `route-exclude-address`. Nested sections are merged into the profile's. Servers, groups, rules and providers are ignored there, those belong in `flc config`, and anything that would open ports or touch the system is dropped, same as in profiles. If the VPN is up, the change applies on the fly.
 
@@ -251,9 +259,9 @@ The update only talks to GitHub over https, refuses redirects to anywhere else, 
 Bump `version` in `src/main.go`, commit, then tag that commit and publish a release for the tag:
 
 ```sh
-git tag v0.3.1
-git push origin v0.3.1
-gh release create v0.3.1 --title v0.3.1 --notes-file notes.md
+git tag v0.3.2
+git push origin v0.3.2
+gh release create v0.3.2 --title v0.3.2 --notes-file notes.md
 ```
 
 No files need to be attached: `flc check-updates` builds the tag from source.
