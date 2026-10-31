@@ -12,32 +12,6 @@ It reads clash/mihomo YAML subscriptions, and plain or base64 lists of `vless://
 
 ## Install
 
-There are two ways, and they don't depend on each other. Pick whichever you like.
-
-### Prebuilt binaries
-
-Download `FLClashX-CLI-<version>-linux-amd64.tar.gz` from [Releases](https://github.com/Qwarwin4/FLClashX-CLI/releases), unpack it and run the installer that comes inside:
-
-```sh
-tar xzf FLClashX-CLI-v0.3.2-linux-amd64.tar.gz
-cd FLClashX-CLI-v0.3.2-linux-amd64
-./install.sh
-```
-
-Run it as your normal user, it asks for root when it needs it. You don't need Go for this. If `setcap` is missing, the script installs it (`libcap` on Arch, `libcap2-bin` on Debian/Ubuntu).
-
-Prefer to do it by hand? The archive has a single binary, and it goes in twice: once as the command you type, once as the core that gets the network rights.
-
-```sh
-sudo install -Dm755 flc /usr/local/bin/flc
-sudo install -Dm755 flc /usr/local/lib/flc/flc-core
-sudo setcap cap_net_admin,cap_net_bind_service=+ep /usr/local/lib/flc/flc-core
-```
-
-Make it a real copy, not a link, so only `flc-core` gets those rights. FLClashX CLI looks for the core either in `../lib/flc/` relative to itself or right next to it, so keeping both in one folder, say `~/.local/bin`, works just as well.
-
-### From source
-
 ```sh
 git clone https://github.com/Qwarwin4/FLClashX-CLI
 cd FLClashX-CLI
@@ -253,18 +227,6 @@ It asks GitHub for the latest release, shows what changed and waits for a `y` be
 If anything fails, the old version stays put. If the VPN was running, it offers to restart it on the new version.
 
 The update only talks to GitHub over https, refuses redirects to anywhere else, and unpacks into a private temp folder where no path can escape.
-
-## Making a release
-
-Bump `version` in `src/main.go`, commit, then tag that commit and publish a release for the tag:
-
-```sh
-git tag v0.3.2
-git push origin v0.3.2
-gh release create v0.3.2 --title v0.3.2 --notes-file notes.md
-```
-
-No files need to be attached: `flc check-updates` builds the tag from source.
 
 ## Uninstall
 
