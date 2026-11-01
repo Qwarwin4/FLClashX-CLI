@@ -1,10 +1,12 @@
-# FLClashX CLI
-
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
+<h1 align="center">FLClashX CLI</h1>
 
 <p align="center">
-  <a href="https://t.me/qwarwin4git"><img src="https://img.shields.io/badge/Telegram-Follow-26A5E4?style=for-the-badge&logo=telegram&logoColor=white&labelColor=1b1f24" height="40" alt="Telegram: follow the channel"></a>
-  <a href="mailto:qwarwin@gmail.com"><img src="https://img.shields.io/badge/Gmail-Contact-EA4335?style=for-the-badge&logo=gmail&logoColor=white&labelColor=1b1f24" height="40" alt="Gmail: contact"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-A42E2B?style=for-the-badge&labelColor=1b1f24&logo=gnu&logoColor=white" height="40" alt="License: GPL-3.0"></a>
+</p>
+
+<p align="center">
+  <a href="https://t.me/qwarwin4git"><img src="https://img.shields.io/badge/Telegram-Follow-26A5E4?style=for-the-badge&labelColor=1b1f24&logo=telegram&logoColor=white" height="40" alt="Telegram: follow the channel"></a>
+  <a href="mailto:qwarwin@gmail.com"><img src="https://img.shields.io/badge/Gmail-Contact-EA4335?style=for-the-badge&labelColor=1b1f24&logo=gmail&logoColor=white" height="40" alt="Gmail: contact"></a>
 </p>
 
 A terminal VPN client for Linux, built on the [mihomo](https://github.com/MetaCubeX/mihomo) core, the same engine inside [FlClashX](https://github.com/pluralplay/FlClashX), just without the window.
