@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -93,15 +94,40 @@ var ghHosts = map[string]bool{
 
 func trusted(h string) bool { return ghHosts[h] }
 
-func ghGet(cl *http.Client, url string) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
+func ghDo(cl *http.Client, url string) (*http.Response, error) {
 	s, _ := readSettings()
-	req.Header.Set("User-Agent", agentFor(s))
-	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := cl.Do(req)
+	try := func(c *http.Client) (*http.Response, error) {
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("User-Agent", agentFor(s))
+		req.Header.Set("Accept", "application/vnd.github+json")
+		return c.Do(req)
+	}
+
+	var err error
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Duration(i) * time.Second)
+		var resp *http.Response
+		if resp, err = try(cl); err == nil {
+			return resp, nil
+		}
+	}
+	if tr, ok := cl.Transport.(*http.Transport); ok && tr.Proxy != nil {
+		direct := *cl
+		t := tr.Clone()
+		t.Proxy = nil
+		direct.Transport = t
+		if resp, derr := try(&direct); derr == nil {
+			return resp, nil
+		}
+	}
+	return nil, err
+}
+
+func ghGet(cl *http.Client, url string) (*http.Response, error) {
+	resp, err := ghDo(cl, url)
 	if err != nil {
 		return nil, err
 	}
@@ -129,6 +155,11 @@ func latest(cl *http.Client) (*release, error) {
 	api := "https://api.github.com/repos/" + repo
 	r := &release{}
 	err := ghJSON(cl, api+"/releases/latest", r)
+	if err != nil && !errors.Is(err, errNotFound) {
+		if tag, u := latestPage(cl); tag != "" {
+			r.Tag, r.URL, err = tag, u, nil
+		}
+	}
 	if errors.Is(err, errNotFound) {
 		var tags []struct {
 			Name string `json:"name"`
@@ -145,7 +176,8 @@ func latest(cl *http.Client) (*release, error) {
 		err = nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf(T("не удалось проверить обновления: %w", "couldn't check for updates: %w"), err)
+		return nil, fmt.Errorf(T("не удалось достучаться до GitHub (%v). Если VPN запущен, попробуй сменить сервер или повтори без VPN",
+			"couldn't reach GitHub (%v). If the VPN is running, try another server or try again without it"), err)
 	}
 	if r.Tag == "" {
 		return nil, errors.New(T("в репозитории пока нет версий", "the repo has no versions yet"))
@@ -154,6 +186,25 @@ func latest(cl *http.Client) (*release, error) {
 		return nil, fmt.Errorf(T("странный тег версии %q", "odd version tag %q"), r.Tag)
 	}
 	return r, nil
+}
+
+func latestPage(cl *http.Client) (string, string) {
+	c := *cl
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := ghDo(&c, "https://github.com/"+repo+"/releases/latest")
+	if err != nil {
+		return "", ""
+	}
+	resp.Body.Close()
+	loc, err := resp.Location()
+	if err != nil || loc.Scheme != "https" || loc.Hostname() != "github.com" {
+		return "", ""
+	}
+	tag := path.Base(loc.Path)
+	if !tagRe.MatchString(tag) {
+		return "", ""
+	}
+	return tag, loc.String()
 }
 
 func semver(s string) ([3]int, bool) {
