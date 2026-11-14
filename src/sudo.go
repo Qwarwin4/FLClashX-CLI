@@ -111,7 +111,8 @@ func sudoersText() (string, error) {
 		add(p + " -m 755 -o root -g root -- * " + files[1])
 	}
 	for _, p := range rootBins("setcap") {
-		add(p + " cap_net_admin,cap_net_bind_service=+ep " + files[1])
+		// the comma is a list separator for sudoers, so it needs the backslash
+		add(p + ` cap_net_admin\,cap_net_bind_service=+ep ` + files[1])
 	}
 	bins := strings.Join(files, " ")
 	for _, p := range rootBins("rm") {
