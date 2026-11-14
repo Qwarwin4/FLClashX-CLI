@@ -28,6 +28,8 @@ log-level: info
 flags: auto
 # запускать VPN при входе в систему
 autostart: false
+# не спрашивать пароль при старте/остановке VPN и при обновлении flc — правила в polkit и sudoers
+skip-prompts: false
 # приложения, которые идут мимо VPN-туннеля, через запятую: discord, steam
 apps-direct: ""
 # чинить то, что ломают блокировки: QUIC, утечки IPv6, YouTube мимо VPN
@@ -70,6 +72,8 @@ log-level: info
 flags: auto
 # start the VPN when you log in
 autostart: false
+# don't ask for the password on VPN start/stop and flc update — rules in polkit and sudoers
+skip-prompts: false
 # apps that go around the VPN tunnel, comma separated: discord, steam
 apps-direct: ""
 # work around what blocking breaks: QUIC, IPv6 leaks, YouTube going around the VPN
@@ -99,24 +103,25 @@ wipe-log: false
 func settingsPath() string { return filepath.Join(dir.cfg, "settings.yaml") }
 
 type settings struct {
-	Tun        bool   `yaml:"tun"`
-	Stack      string `yaml:"tun-stack"`
-	MixedPort  int    `yaml:"mixed-port"`
-	Mode       string `yaml:"mode"`
-	LogLevel   string `yaml:"log-level"`
-	Flags      string `yaml:"flags"`
-	Interval   int    `yaml:"update-interval"`
-	KeepRules  bool   `yaml:"keep-rules"`
-	AutoCheck  bool   `yaml:"check-updates"`
-	HWID       string `yaml:"hide-hwid"`
-	HideUA     bool   `yaml:"hide-user-agent"`
-	HideDevice bool   `yaml:"hide-device"`
-	HideOS     bool   `yaml:"hide-os"`
-	HideProc   bool   `yaml:"hide-processes"`
-	WipeLog    bool   `yaml:"wipe-log"`
-	Autostart  bool   `yaml:"autostart"`
-	AppsDirect string `yaml:"apps-direct"`
-	AntiBlock  bool   `yaml:"anti-block"`
+	Tun         bool   `yaml:"tun"`
+	Stack       string `yaml:"tun-stack"`
+	MixedPort   int    `yaml:"mixed-port"`
+	Mode        string `yaml:"mode"`
+	LogLevel    string `yaml:"log-level"`
+	Flags       string `yaml:"flags"`
+	Interval    int    `yaml:"update-interval"`
+	KeepRules   bool   `yaml:"keep-rules"`
+	AutoCheck   bool   `yaml:"check-updates"`
+	SkipPrompts bool   `yaml:"skip-prompts"`
+	HWID        string `yaml:"hide-hwid"`
+	HideUA      bool   `yaml:"hide-user-agent"`
+	HideDevice  bool   `yaml:"hide-device"`
+	HideOS      bool   `yaml:"hide-os"`
+	HideProc    bool   `yaml:"hide-processes"`
+	WipeLog     bool   `yaml:"wipe-log"`
+	Autostart   bool   `yaml:"autostart"`
+	AppsDirect  string `yaml:"apps-direct"`
+	AntiBlock   bool   `yaml:"anti-block"`
 }
 
 func loadSettings() (settings, error) {
@@ -229,7 +234,8 @@ func saveSettings(s settings) error {
 	}{
 		{"tun", s.Tun}, {"tun-stack", s.Stack}, {"mixed-port", s.MixedPort}, {"mode", s.Mode},
 		{"log-level", s.LogLevel}, {"flags", s.Flags}, {"update-interval", s.Interval},
-		{"keep-rules", s.KeepRules}, {"check-updates", s.AutoCheck}, {"hide-hwid", s.HWID},
+		{"keep-rules", s.KeepRules}, {"check-updates", s.AutoCheck},
+		{"skip-prompts", s.SkipPrompts}, {"hide-hwid", s.HWID},
 		{"hide-user-agent", s.HideUA}, {"hide-device", s.HideDevice}, {"hide-os", s.HideOS},
 		{"hide-processes", s.HideProc}, {"wipe-log", s.WipeLog}, {"autostart", s.Autostart},
 		{"apps-direct", s.AppsDirect}, {"anti-block", s.AntiBlock},

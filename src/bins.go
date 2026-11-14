@@ -79,6 +79,16 @@ func asRootQuiet(args ...string) error {
 	return c.Run()
 }
 
+func asRootOut(args ...string) (string, error) {
+	su, err := rootTool()
+	if err != nil {
+		return "", err
+	}
+	c := exec.Command(su, args...)
+	out, err := c.CombinedOutput()
+	return clean(string(out)), err
+}
+
 func cmdDelete(args []string) error {
 	fs := newFlags("delete")
 	yes := fs.Bool("y", false, "")
@@ -116,15 +126,7 @@ func removeBins() error {
 	if filepath.Base(exe) != "flc" {
 		return fmt.Errorf(T("%s не похож на flc, удали его вручную", "%s doesn't look like flc, remove it by hand"), exe)
 	}
-	files := []string{exe}
-	lib := ""
-	if core, err := siblingCore(exe); err == nil {
-		files = append(files, core)
-		if d := filepath.Dir(core); filepath.Base(d) == "flc" && d != filepath.Dir(exe) {
-			lib = d
-			files = append(files, filepath.Join(lib, "uninstall.sh"))
-		}
-	}
+	files, lib := rootFiles()
 
 	var locked []string
 	for _, f := range files {
@@ -137,9 +139,15 @@ func removeBins() error {
 			return err
 		}
 	}
+	// the sudoers rule matches commands verbatim, so the binaries and the rule files go in two rm calls
 	if len(locked) > 0 {
 		fmt.Println(T("удаляю программу, понадобятся права root...", "removing the program, root is needed..."))
-		if err := asRoot(append([]string{"rm", "-f", "--"}, locked...)...); err != nil {
+		if err := asRoot(append([]string{"rm", "-f", "--"}, files...)...); err != nil {
+			return err
+		}
+	}
+	if sudoOn() || polkitOn() {
+		if err := asRootQuiet("rm", "-f", "--", sudoDropIn, polkitRule); err != nil {
 			return err
 		}
 	}

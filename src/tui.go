@@ -88,6 +88,19 @@ func tabs() []tab {
 					"Bring the VPN up when you log in, via XDG autostart. Window managers without it won't read it: add flc start to your config then.")
 			},
 			func(s *settings) *bool { return &s.Autostart }),
+		tg(func() string { return T("Не спрашивать пароль", "Skip password prompts") },
+			func() string {
+				now := T("Сейчас: правил нет.", "Now: no rules.")
+				switch {
+				case sudoOn() && polkitOn():
+					now = T("Сейчас: правила стоят.", "Now: the rules are in place.")
+				case sudoOn() || polkitOn():
+					now = T("Сейчас: стоит одно из двух.", "Now: one of the two is in place.")
+				}
+				return T("Обновление, удаление, старт и стоп VPN без вопросов о пароле. Включи — flc один раз спросит его и запишет правила в polkit и /etc/sudoers.d/flc. ",
+					"VPN start, stop, update and removal without the password prompts. Turn it on — flc asks once and writes the rules into polkit and /etc/sudoers.d/flc. ") + now
+			},
+			func(s *settings) *bool { return &s.SkipPrompts }),
 		tg(func() string { return T("Весь трафик (TUN)", "System-wide (TUN)") },
 			func() string {
 				return T("Включено: через VPN идёт весь трафик системы. Выключено: работает только прокси на 127.0.0.1.",
@@ -1061,6 +1074,18 @@ func cmdSettings(args []string) error {
 			fmt.Printf(T("автозапуск включён (%s)\n", "start on login is on (%s)\n"), autostartState())
 		} else {
 			fmt.Println(T("автозапуск выключен", "start on login is off"))
+		}
+	}
+	has := sudoOn() || polkitOn()
+	full := sudoOn() && polkitOn()
+	if (now.s.SkipPrompts && !full) || (!now.s.SkipPrompts && has) {
+		if err := setSkipPrompts(now.s.SkipPrompts); err != nil {
+			fmt.Fprintf(os.Stderr, T("исключение пароля: %v\n", "password exception: %v\n"), err)
+		} else if now.s.SkipPrompts {
+			fmt.Println(T("запросы пароля отключены: правила в polkit и /etc/sudoers.d/flc",
+				"password prompts are off: rules in polkit and /etc/sudoers.d/flc"))
+		} else {
+			fmt.Println(T("запросы пароля включены обратно", "password prompts are back on"))
 		}
 	}
 	if corePid() > 0 && (now.s.Interval > 0 || now.s.AutoCheck) {

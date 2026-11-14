@@ -245,6 +245,7 @@ func notes(s string) string {
 }
 
 func upgrade(cl *http.Client, r *release) error {
+	syncPrompts()
 	exe, err := self()
 	if err != nil {
 		return err

@@ -113,6 +113,7 @@ mode: rule              # rule | global | direct, same as flc change-mode
 log-level: info         # silent | error | warning | info | debug
 flags: auto             # country flags in server names: auto | emoji | text
 autostart: false        # start the VPN when you log in
+skip-prompts: false     # no password prompts on VPN start/stop or flc update/delete
 apps-direct: ""         # apps that go around the VPN tunnel: discord, steam
 anti-block: true        # QUIC, IPv6 leak and YouTube fixes, see below
 
@@ -147,6 +148,8 @@ wipe-log: false
 
 **New versions.** With `check-updates: true`, once a day while the VPN runs FLClashX CLI asks GitHub whether a new version is out. It never installs anything by itself: you get a desktop notification (if `notify-send` is around) and a hint under `flc status` and `flc version`. Installing is still `flc check-updates`.
 
+**Skip password prompts.** Two things keep asking for a password. On VPN start and stop the TUN core runs `resolvectl` to point systemd-resolved at the tunnel's DNS, and polkit pops the "Authentication is required to set domains" dialog (its "reset name resolution settings" twin shows up on stop). Updating and deleting FLClashX CLI runs root commands — copying the binaries, `setcap` on the core, removing files — and sudo asks on each. With `skip-prompts: true` (the **Skip password prompts** toggle in `flc settings`) FLClashX CLI asks for the password once and writes two files: a polkit rule in `/etc/polkit-1/rules.d/49-flclashx-cli.rules` allowing your user just those four resolved actions, and a sudoers drop-in `/etc/sudoers.d/flc` pinning flc's exact root commands, install paths included. Nothing broader gets the exemption. Turning the setting off removes both files, and so does `flc delete`. The rules are written when you save `flc settings`; if you flip the yaml by hand, the next `flc check-updates` catches up.
+
 **Country flags.** Server names often start with a flag like 🇩🇪. Some terminals, Alacritty among them, can't draw flags and show two letter boxes instead. With `flags: text` FLClashX CLI writes the country code in plain letters (`DE Germany`). `auto`, the default, keeps emoji in kitty, foot, WezTerm and Ghostty and when the output goes into a pipe, and uses letters everywhere else.
 
 ## Privacy
@@ -178,6 +181,8 @@ A panel keeps what it saw before. After switching `hide-hwid` to `fake` or `none
 | `~/.local/state/flc/core.log` | log (`core.log.1` is the previous run) |
 | `~/.local/state/flc/watch.log` | background subscription refreshes and version checks |
 | `~/.config/flc/hwid-key` | random key behind the fake HWID; delete it to get new fake HWIDs |
+| `/etc/polkit-1/rules.d/49-flclashx-cli.rules` | polkit rule behind `skip-prompts`, quiets the VPN start/stop DNS prompts |
+| `/etc/sudoers.d/flc` | sudoers rule behind `skip-prompts`, quiets flc's root commands on update and delete |
 | `$XDG_RUNTIME_DIR/flc/` | control socket and pid while the VPN is up |
 
 ## Troubleshooting

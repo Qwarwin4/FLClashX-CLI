@@ -101,6 +101,13 @@ func about() string {
 	if features.WithGVisor {
 		st = "mixed, system, gvisor"
 	}
+	se := T("нет", "no")
+	switch {
+	case sudoOn() && polkitOn():
+		se = T("да, polkit + sudoers", "yes, polkit + sudoers")
+	case sudoOn() || polkitOn():
+		se = T("частично", "partial")
+	}
 
 	rows := [][2]string{
 		{T("версия", "version"), strings.TrimPrefix(version, "v")},
@@ -111,6 +118,7 @@ func about() string {
 		{T("устройство", "device"), dev},
 		{T("подписка", "subscription"), upd},
 		{T("автозапуск", "on login"), autoInfo()},
+		{T("запросы пароля", "password prompts"), se},
 		{T("флаги", "flags"), fl},
 		{T("стеки TUN", "TUN stacks"), st},
 		{T("настройки", "settings"), tilde(settingsPath())},
