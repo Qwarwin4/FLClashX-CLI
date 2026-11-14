@@ -189,9 +189,9 @@ func setSkipPrompts(on bool) error {
 	if err != nil {
 		return err
 	}
-	if su != "sudo" {
+	if base := filepath.Base(su); base != "sudo" {
 		return fmt.Errorf(T("flc берёт права через %s, исключения на него не влияют",
-			"flc elevates through %s, the password exceptions don't apply to it"), su)
+			"flc elevates through %s, the password exceptions don't apply to it"), base)
 	}
 	text, err := sudoersText()
 	if err != nil {
